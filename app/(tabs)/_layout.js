@@ -1,6 +1,6 @@
+import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 
 export default function TabLayout() {
   return (
@@ -43,10 +43,21 @@ export default function TabLayout() {
         },
       })}
     >
+      {/* Widoczne w tab barze */}
       <Tabs.Screen name="strona-glowna" options={{ title: 'Strona Główna' }} />
       <Tabs.Screen name="zadania" options={{ title: 'Zadania' }} />
       <Tabs.Screen name="pomoc" options={{ title: 'Pomoc' }} />
       <Tabs.Screen name="statystyki" options={{ title: 'Statystyki' }} />
+
+      {/* Ukryte z tab bara, ale dostępne przez router.push */}
+      <Tabs.Screen name="zadania/quizy" options={{ href: null }} />
+      <Tabs.Screen name="zadania/specjalne" options={{ href: null }} />
+      <Tabs.Screen name="zadania/roznice" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe" options={{ href: null }} />
+      <Tabs.Screen name="zadania/quizy/[id]" options={{ href: null }} />
+      <Tabs.Screen name="prezent" options={{ href: null }} />
+      <Tabs.Screen name="zadania/quizy/index" options={{ href: null }} />
+
     </Tabs>
   );
 }
