@@ -19,8 +19,8 @@ export default function TabLayout() {
         tabBarIcon: ({ color, focused }) => {
           const icons = {
             'strona-glowna': <Feather name="home" size={24} color={color} />,
-            zadania: <Feather name="file-check" size={24} color={color} />,
-            pomoc: <Feather name="message-square" size={24} color={color} />,
+            zadania: <Feather name="check-circle" size={24} color={color} />,
+            pomoc: <Feather name="file-check" size={24} color={color} />,
             statystyki: <Feather name="bar-chart" size={24} color={color} />,
           };
 
