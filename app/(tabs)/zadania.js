@@ -40,7 +40,7 @@ export default function Zadania() {
             styles.prezentKafelek,
             { opacity: wykonane < wszystkie ? 0.4 : 1 },
           ]}
-          onPress={() => router.push('/prezent')}
+          onPress={() => router.push('/gift')}
           disabled={wykonane < wszystkie}
         >
           <Text style={styles.prezentTekst}>🎁 Odbierz prezent</Text>
