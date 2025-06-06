@@ -1,73 +1,96 @@
 import { db } from '@/firebaseConfig';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     ImageBackground,
+    Platform,
     SafeAreaView,
+    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
 
-export default function ListaZadanSpecjalnych() {
+export default function ListaRoznic() {
   const router = useRouter();
-  const [wykonane, setWykonane] = useState({});
+  const [ukonczoneRebusy, setUkonczoneRebusy] = useState([]);
 
-  useEffect(() => {
-    const pobierzDane = async () => {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        setWykonane(dane.specjalneZadania || {});
-      }
-    };
-    pobierzDane();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const pobierzRebusy = async () => {
+        const docRef = doc(db, 'appState', 'uczestnik1');
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const dane = snap.data();
+          setUkonczoneRebusy(dane.rebusy || []);
+        }
+      };
+
+      pobierzRebusy();
+    }, [])
+  );
 
   return (
-    <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
-      <SafeAreaView style={styles.wrapper}>
-        <Text style={styles.tytul}>📸 Wybierz zadanie specjalne</Text>
+    <ImageBackground
+      source={require('@/assets/backstandard.png')}
+      style={styles.tlo}
+      resizeMode="cover"
+    >
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.content}>
+          <Text style={styles.tytul}>🧩 Wybierz rebus</Text>
 
-        <View style={styles.lista}>
-          {[...Array(10)].map((_, i) => {
-            const id = String(i + 1);
-            const czyWykonane = wykonane[id];
+          <View style={styles.lista}>
+            {[...Array(10)].map((_, i) => {
+              const id = String(i + 1);
+              const ukonczony = ukonczoneRebusy.includes(id);
 
-            return (
-              <TouchableOpacity
-                key={id}
-                style={[styles.kafelek, czyWykonane && styles.kafelekUkonczony]}
-                onPress={() => router.push(`/zadania/specjalne/${id}`)}
-              >
-                <Text style={styles.kafelekText}>
-                  {czyWykonane ? `✅ Zadanie ${id}` : `Zadanie ${id}`}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+              return (
+                <TouchableOpacity
+                  key={id}
+                  style={[styles.kafelek, ukonczony && styles.kafelekUkonczony]}
+                  onPress={() => router.push(`/zadania/roznice/${id}`)}
+                >
+                  <Text style={styles.kafelekText}>
+                    {ukonczony ? `✅ Rebus ${id}` : `Rebus ${id}`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
+            <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
+          </TouchableOpacity>
         </View>
-
-  <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
-  <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
-</TouchableOpacity>
       </SafeAreaView>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  tlo: { flex: 1 },
-  wrapper: { flex: 1, padding: 20, justifyContent: 'space-between' },
+  tlo: {
+    flex: 1,
+  },
+  safe: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  content: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 20,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+  },
   tytul: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#3F51B5',
-    marginBottom: 20,
     textAlign: 'center',
+    marginBottom: 20,
   },
   lista: {
     flexDirection: 'row',
@@ -76,16 +99,17 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   kafelek: {
-    backgroundColor: '#4CAF50',
-    width: 100,
-    height: 100,
+    backgroundColor: '#E76617',
+    width: 90,
+    height: 90,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    margin: 5,
   },
   kafelekUkonczony: {
     backgroundColor: '#ccc',
-    opacity: 0.7,
+    opacity: 0.6,
   },
   kafelekText: {
     color: '#FFF',
@@ -95,7 +119,7 @@ const styles = StyleSheet.create({
   },
   powrot: {
     alignItems: 'center',
-    marginBottom: 50,
+    marginTop: 30,
   },
   powrotText: {
     color: '#3F51B5',
