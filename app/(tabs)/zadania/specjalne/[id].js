@@ -1,46 +1,43 @@
-import { db, storage } from '@/firebaseConfig';
+import { db } from '@/firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { useEffect, useState } from 'react';
 import {
-  Image,
-  ImageBackground,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
+    Image,
+    ImageBackground,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
 } from 'react-native';
 
 export default function ZadanieSpecjalne() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
 
-  const [zaladowane, setZaladowane] = useState(false);
-  const [zapisaneUrl, setZapisaneUrl] = useState(null);
-  const [przesylanie, setPrzesylanie] = useState(false);
+  const [localUri, setLocalUri] = useState(null);
+  const [firebaseUri, setFirebaseUri] = useState(null);
+  const [status, setStatus] = useState(null); // null | 'pending' | 'accepted'
+  const [wiadomosc, setWiadomosc] = useState('');
 
-  // 📥 Pobierz URL zdjęcia jeśli już istnieje
   useEffect(() => {
-    const pobierzDane = async () => {
+    const pobierzStatus = async () => {
       const docRef = doc(db, 'appState', 'uczestnik1');
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const dane = snap.data();
         const zadanie = dane?.specjalne?.[id];
         if (zadanie?.url) {
-          setZapisaneUrl(zadanie.url);
-          setZaladowane(true);
+          setFirebaseUri(zadanie.url);
+          setStatus(zadanie.accepted ? 'accepted' : 'pending');
         }
       }
     };
-    pobierzDane();
+    pobierzStatus();
   }, [id]);
 
   const wybierzZdjecie = async () => {
-    setPrzesylanie(true);
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.5,
@@ -48,70 +45,73 @@ export default function ZadanieSpecjalne() {
 
     if (!result.canceled && result.assets.length > 0) {
       const uri = result.assets[0].uri;
-      console.log('📷 Wybrane zdjęcie:', uri);
+      setLocalUri(uri);
+      setWiadomosc(
+        '⚠️ Zdjęcie zapisane lokalnie. Prześlij je organizatorowi, aby zaliczyć zadanie.'
+      );
 
       try {
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        console.log('🧪 Blob utworzony:', blob);
-
-        const nazwaPliku = `specjalne/${id}.jpg`;
-        const storageRef = ref(storage, nazwaPliku);
-        console.log('☁️ Rozpoczynam przesyłanie do Firebase Storage...');
-
-        const uploadTask = uploadBytesResumable(storageRef, blob);
-
-        uploadTask.on(
-          'state_changed',
-          null,
-          (error) => {
-            console.error('❌ Błąd uploadu:', error);
-            setPrzesylanie(false);
+        const docRef = doc(db, 'appState', 'uczestnik1');
+        await updateDoc(docRef, {
+          [`specjalne.${id}`]: {
+            url: uri,
+            accepted: false,
           },
-          async () => {
-            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-            console.log('✅ URL do zdjęcia:', downloadUrl);
-
-            const docRef = doc(db, 'appState', 'uczestnik1');
-            await updateDoc(docRef, {
-              [`specjalne.${id}`]: {
-                url: downloadUrl,
-                timestamp: Date.now(),
-              },
-            });
-
-            setZapisaneUrl(downloadUrl);
-            setZaladowane(true);
-            setPrzesylanie(false);
-          }
-        );
+        });
+        setStatus('pending');
       } catch (err) {
-        console.error('❌ Upload całkowicie nieudany:', err);
-        setPrzesylanie(false);
+        console.error('❌ Błąd zapisu do Firestore:', err);
       }
-    } else {
-      setPrzesylanie(false);
     }
   };
+
+  const pokazaneZdjecie = localUri || firebaseUri;
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.wrapper}>
         <Text style={styles.tytul}>📸 Zadanie specjalne {id}</Text>
 
-        {zaladowane && zapisaneUrl ? (
-          <Image source={{ uri: zapisaneUrl }} style={styles.zdjecie} />
+        {pokazaneZdjecie ? (
+          <>
+            <Image
+              source={{ uri: pokazaneZdjecie }}
+              style={[
+                styles.zdjecie,
+                status === 'accepted' ? styles.zielonaRamka : styles.zoltaRamka,
+              ]}
+            />
+            {status && (
+              <Text
+                style={[
+                  styles.statusText,
+                  status === 'accepted' ? styles.statusAccepted : styles.statusPending,
+                ]}
+              >
+                {status === 'accepted'
+                  ? '✅ Zdjęcie zaakceptowane przez organizatora'
+                  : '🕒 Zdjęcie oczekuje na akceptację'}
+              </Text>
+            )}
+          </>
         ) : (
           <Text style={styles.info}>Nie przesłano jeszcze zdjęcia</Text>
         )}
 
-        <TouchableOpacity style={styles.button} onPress={wybierzZdjecie} disabled={przesylanie}>
+        {wiadomosc !== '' && (
+          <Text style={styles.ostrzezenie}>{wiadomosc}</Text>
+        )}
+
+        <TouchableOpacity style={styles.button} onPress={wybierzZdjecie}>
           <Text style={styles.buttonText}>
-            {przesylanie ? 'Przesyłanie...' : zaladowane ? 'Zmień zdjęcie' : 'Prześlij zdjęcie'}
+            {pokazaneZdjecie ? 'Zmień zdjęcie' : 'Prześlij zdjęcie'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania/specjalne')}>
+        <TouchableOpacity
+          style={styles.powrot}
+          onPress={() => router.replace('/zadania/specjalne')}
+        >
           <Text style={styles.powrotText}>← Powrót do listy zadań</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -120,9 +120,7 @@ export default function ZadanieSpecjalne() {
 }
 
 const styles = StyleSheet.create({
-  tlo: {
-    flex: 1,
-  },
+  tlo: { flex: 1 },
   wrapper: {
     flex: 1,
     padding: 20,
@@ -145,7 +143,37 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: 4,
+  },
+  zielonaRamka: {
+    borderColor: '#4CAF50',
+  },
+  zoltaRamka: {
+    borderColor: '#FFC107',
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
     marginBottom: 20,
+  },
+  statusAccepted: {
+    color: '#4CAF50',
+  },
+  statusPending: {
+    color: '#FFC107',
+  },
+  ostrzezenie: {
+    backgroundColor: '#FFF3CD',
+    borderColor: '#FFEEBA',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    color: '#856404',
+    marginBottom: 20,
+    textAlign: 'center',
+    fontSize: 14,
   },
   button: {
     backgroundColor: '#E76617',

@@ -3,17 +3,17 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    ImageBackground,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ImageBackground,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function ListaZadanSpecjalnych() {
   const router = useRouter();
-  const [wykonane, setWykonane] = useState({});
+  const [zadania, setZadania] = useState({});
 
   useEffect(() => {
     const pobierzDane = async () => {
@@ -21,7 +21,7 @@ export default function ListaZadanSpecjalnych() {
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const dane = snap.data();
-        setWykonane(dane.specjalneZadania || {});
+        setZadania(dane.specjalne || {});
       }
     };
     pobierzDane();
@@ -35,25 +35,42 @@ export default function ListaZadanSpecjalnych() {
         <View style={styles.lista}>
           {[...Array(10)].map((_, i) => {
             const id = String(i + 1);
-            const czyWykonane = wykonane[id];
+            const zadanie = zadania?.[id];
+
+            let status = 'brak';
+            if (zadanie) {
+              status = zadanie.accepted ? 'zaakceptowane' : 'oczekujące';
+            }
+
+            const ikona = {
+              zaakceptowane: '✅',
+              oczekujące: '🕒',
+              brak: '📭',
+            }[status];
+
+            const kolor = {
+              zaakceptowane: '#4CAF50',
+              oczekujące: '#FFC107',
+              brak: '#3F51B5',
+            }[status];
 
             return (
               <TouchableOpacity
                 key={id}
-                style={[styles.kafelek, czyWykonane && styles.kafelekUkonczony]}
+                style={[styles.kafelek, { backgroundColor: kolor }]}
                 onPress={() => router.push(`/zadania/specjalne/${id}`)}
               >
                 <Text style={styles.kafelekText}>
-                  {czyWykonane ? `✅ Zadanie ${id}` : `Zadanie ${id}`}
+                  {ikona} Zadanie {id}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-  <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
-  <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
-</TouchableOpacity>
+        <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
+          <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     </ImageBackground>
   );
@@ -76,21 +93,17 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   kafelek: {
-    backgroundColor: '#3F51B5',
     width: 100,
     height: 100,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  kafelekUkonczony: {
-    backgroundColor: '#ccc',
-    opacity: 0.7,
+    padding: 8,
   },
   kafelekText: {
     color: '#FFF',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 15,
     textAlign: 'center',
   },
   powrot: {
