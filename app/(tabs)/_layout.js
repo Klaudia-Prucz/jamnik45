@@ -20,7 +20,7 @@ export default function TabLayout() {
           const icons = {
             'strona-glowna': <Feather name="home" size={24} color={color} />,
             zadania: <Feather name="check-circle" size={24} color={color} />,
-            pomoc: <Feather name="file-check" size={24} color={color} />,
+            pomoc: <Feather name="help-circle" size={24} color={color} />,
             statystyki: <Feather name="bar-chart" size={24} color={color} />,
           };
 
@@ -57,6 +57,13 @@ export default function TabLayout() {
       <Tabs.Screen name="zadania/quizy/[id]" options={{ href: null }} />
       <Tabs.Screen name="gift" options={{ href: null }} />
       <Tabs.Screen name="zadania/quizy/index" options={{ href: null }} />
+      <Tabs.Screen name="zadania/roznice/[id]" options={{ href: null }} />
+      <Tabs.Screen name="zadania/roznice/index" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/[id]" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/index" options={{ href: null }} />
+      <Tabs.Screen name="zadania/specjalne/[id]" options={{ href: null }} />
+      <Tabs.Screen name="zadania/specjalne/index" options={{ href: null }} />
+      
 
     </Tabs>
   );

@@ -56,9 +56,9 @@ export default function ListaQuizow() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.powrot} onPress={() => router.back()}>
-          <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
-        </TouchableOpacity>
+  <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
+  <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
+</TouchableOpacity>
       </SafeAreaView>
     </ImageBackground>
   );
