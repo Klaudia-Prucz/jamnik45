@@ -13,7 +13,7 @@ import { QUIZY } from './quizyBaza';
 
 export default function Quiz() {
   const { id } = useLocalSearchParams();
-  const quizId = String(id);
+  const quizId = Array.isArray(id) ? id[0] : String(id); // poprawka
   const router = useRouter();
 
   const quiz = QUIZY.find((q) => q.id === quizId);
@@ -26,6 +26,15 @@ export default function Quiz() {
   const [wczesniejUkonczony, setWczesniejUkonczony] = useState(false);
 
   const obecne = pytania[index];
+
+  // 🔄 reset stanu przy każdej zmianie quizId
+  useEffect(() => {
+    setIndex(0);
+    setWynik(0);
+    setKoniec(false);
+    setZapisano(false);
+    setWczesniejUkonczony(false);
+  }, [quizId]);
 
   useEffect(() => {
     const sprawdz = async () => {
@@ -61,7 +70,7 @@ export default function Quiz() {
           const quizy = snap.data().quizy || [];
           if (!quizy.includes(quizId)) {
             await updateDoc(docRef, {
-              quizy: arrayUnion(quizId),
+              quizy: arrayUnion(String(quizId)), // upewniamy się, że to string
             });
           }
         }
@@ -107,19 +116,19 @@ export default function Quiz() {
                   <Text style={styles.buttonText}>🔁 Spróbuj ponownie</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-    onPress={() => router.replace('/zadania/quizy')}
-    style={[styles.button, { backgroundColor: '#777', marginTop: 12 }]}
-  >
-    <Text style={styles.buttonText}>← Powrót do zestawów quizów</Text>
-  </TouchableOpacity>
+                  onPress={() => router.replace('/zadania/quizy')}
+                  style={[styles.button, { backgroundColor: '#777', marginTop: 12 }]}
+                >
+                  <Text style={styles.buttonText}>← Powrót do zestawów quizów</Text>
+                </TouchableOpacity>
               </>
             )}
           </>
         ) : (
           <>
             <Text style={styles.numer}>Pytanie {index + 1} z {pytania.length}</Text>
-            <Text style={styles.pytanie}>{obecne.pytanie}</Text>
-            {obecne.odpowiedzi.map((odp, i) => (
+            <Text style={styles.pytanie}>{obecne?.pytanie}</Text>
+            {obecne?.odpowiedzi?.map((odp, i) => (
               <TouchableOpacity key={i} onPress={() => wybierzOdpowiedz(i)} style={styles.odp}>
                 <Text style={styles.odpText}>{odp}</Text>
               </TouchableOpacity>

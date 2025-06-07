@@ -1,4 +1,7 @@
+import { db } from '@/firebaseConfig';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { doc, getDoc } from 'firebase/firestore';
+import { useCallback, useState } from 'react';
 import {
   ImageBackground,
   SafeAreaView,
@@ -7,9 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useCallback, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
 
 export default function ListaQuizow() {
   const router = useRouter();
@@ -22,7 +22,9 @@ export default function ListaQuizow() {
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           const dane = snap.data();
-          setUkonczoneQuizy(dane.quizy || []);
+          const lista = Array.isArray(dane.quizy) ? dane.quizy : [];
+          console.log('✔️ Ukonczone quizy z Firestore:', lista);
+          setUkonczoneQuizy(lista);
         }
       };
 
@@ -38,8 +40,9 @@ export default function ListaQuizow() {
 
           <View style={styles.lista}>
             {[...Array(15)].map((_, i) => {
-              const id = String(i + 1);
+              const id = (i + 1).toString(); // ważne: string!
               const ukonczony = ukonczoneQuizy.includes(id);
+              console.log(`Quiz ${id} ukończony?`, ukonczony);
 
               return (
                 <TouchableOpacity
@@ -56,9 +59,9 @@ export default function ListaQuizow() {
           </View>
         </View>
 
-  <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
-  <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
-</TouchableOpacity>
+        <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
+          <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     </ImageBackground>
   );
