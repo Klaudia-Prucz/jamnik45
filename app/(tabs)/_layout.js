@@ -57,8 +57,8 @@ export default function TabLayout() {
       <Tabs.Screen name="zadania/quizy/[id]" options={{ href: null }} />
       <Tabs.Screen name="gift" options={{ href: null }} />
       <Tabs.Screen name="zadania/quizy/index" options={{ href: null }} />
-      <Tabs.Screen name="zadania/roznice/[id]" options={{ href: null }} />
-      <Tabs.Screen name="zadania/roznice/index" options={{ href: null }} />
+      <Tabs.Screen name="zadania/rebusy/[id]" options={{ href: null }} />
+      <Tabs.Screen name="zadania/rebusy/index" options={{ href: null }} />
       <Tabs.Screen name="zadania/zrecznosciowe/[id]" options={{ href: null }} />
       <Tabs.Screen name="zadania/zrecznosciowe/index" options={{ href: null }} />
       <Tabs.Screen name="zadania/specjalne/[id]" options={{ href: null }} />

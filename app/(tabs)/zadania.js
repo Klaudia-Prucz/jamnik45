@@ -31,7 +31,7 @@ export default function Zadania() {
         <View style={styles.kategorieSiatka}>
           {renderKafelek('🧠 Quizy', () => router.push('/zadania/quizy'))}
           {renderKafelek('📸 Zadania specjalne', () => router.push('/zadania/specjalne'), '#3F51B5')}
-          {renderKafelek('🔍 Znajdź różnice', () => router.push('/zadania/roznice'), '#4CAF50')}
+          {renderKafelek('🔍 Rebusy', () => router.push('/zadania/rebusy'), '#4CAF50')}
           {renderKafelek('🎮 Zręcznościowe', () => router.push('/zadania/zrecznosciowe'), '#FF9800')}
         </View>
 

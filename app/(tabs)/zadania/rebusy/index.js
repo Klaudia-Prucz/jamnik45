@@ -3,17 +3,17 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import {
-    ImageBackground,
-    Platform,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ImageBackground,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
-export default function ListaRoznic() {
+export default function ListaRebusow() {
   const router = useRouter();
   const [ukonczoneRebusy, setUkonczoneRebusy] = useState([]);
 
@@ -51,7 +51,7 @@ export default function ListaRoznic() {
                 <TouchableOpacity
                   key={id}
                   style={[styles.kafelek, ukonczony && styles.kafelekUkonczony]}
-                  onPress={() => router.push(`/zadania/roznice/${id}`)}
+                  onPress={() => router.push(`/zadania/rebusy/${id}`)}
                 >
                   <Text style={styles.kafelekText}>
                     {ukonczony ? `✅ Rebus ${id}` : `Rebus ${id}`}

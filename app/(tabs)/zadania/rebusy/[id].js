@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,19 +14,50 @@ import {
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
 } from 'react-native';
+import { rebusy } from './rebusy';
+import { db } from '@/firebaseConfig';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 
-export default function RebusZadanie({ emojiRebus, odpowiedzPoprawna, onSuccess }) {
+export default function RebusZadanie() {
+  const { id } = useLocalSearchParams();
+  const router = useRouter();
+
   const [odpowiedz, setOdpowiedz] = useState('');
   const [status, setStatus] = useState(null); // 'correct' | 'wrong' | null
+  const [zrobione, setZrobione] = useState(false);
 
-  const sprawdzOdpowiedz = () => {
+  const rebus = rebusy.find((r) => r.id === id);
+
+  useEffect(() => {
+    // Resetuj stan przy zmianie rebusa
+    setOdpowiedz('');
+    setStatus(null);
+    setZrobione(false);
+  }, [id]);
+
+  const sprawdzOdpowiedz = async () => {
     Keyboard.dismiss();
     const czysta = odpowiedz.trim().toLowerCase();
-    const poprawna = odpowiedzPoprawna.toLowerCase();
+    const poprawna = rebus?.odpowiedz?.toLowerCase();
 
     if (czysta === poprawna) {
       setStatus('correct');
-      onSuccess?.();
+      setZrobione(true);
+
+      try {
+        const docRef = doc(db, 'appState', 'uczestnik1');
+        const snap = await getDoc(docRef);
+        const dane = snap.data();
+        const poprzednie = dane?.rebusy || [];
+
+        if (!poprzednie.includes(id)) {
+          await updateDoc(docRef, {
+            rebusy: [...poprzednie, id],
+          });
+        }
+      } catch (err) {
+        console.error('❌ Błąd zapisu do Firestore:', err);
+      }
     } else {
       setStatus('wrong');
     }
@@ -37,6 +69,14 @@ export default function RebusZadanie({ emojiRebus, odpowiedzPoprawna, onSuccess 
   };
 
   const gotowa = odpowiedz.trim().length > 0;
+
+  if (!rebus) {
+    return (
+      <SafeAreaView style={styles.wrapper}>
+        <Text>Nie znaleziono rebusa.</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <ImageBackground
@@ -51,7 +91,7 @@ export default function RebusZadanie({ emojiRebus, odpowiedzPoprawna, onSuccess 
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.container}>
-              <Text style={styles.rebus}>{emojiRebus}</Text>
+              <Text style={styles.rebus}>{rebus.emojiRebus}</Text>
 
               <TextInput
                 style={styles.input}
@@ -76,6 +116,13 @@ export default function RebusZadanie({ emojiRebus, odpowiedzPoprawna, onSuccess 
               {status === 'wrong' && (
                 <Text style={styles.error}>❌ Spróbuj jeszcze raz!</Text>
               )}
+
+              <TouchableOpacity
+                style={styles.powrot}
+                onPress={() => router.push('/zadania/rebusy')}
+              >
+                <Text style={styles.powrotText}>← Wybierz inny rebus</Text>
+              </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
@@ -139,5 +186,13 @@ const styles = StyleSheet.create({
     color: 'red',
     fontSize: 18,
     marginTop: 12,
+  },
+  powrot: {
+    marginTop: 24,
+  },
+  powrotText: {
+    fontSize: 16,
+    color: '#3F51B5',
+    fontWeight: '600',
   },
 });

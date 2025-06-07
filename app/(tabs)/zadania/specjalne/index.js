@@ -1,7 +1,7 @@
 import { db } from '@/firebaseConfig';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ImageBackground,
   SafeAreaView,
@@ -15,17 +15,21 @@ export default function ListaZadanSpecjalnych() {
   const router = useRouter();
   const [zadania, setZadania] = useState({});
 
-  useEffect(() => {
-    const pobierzDane = async () => {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        setZadania(dane.specjalne || {});
-      }
-    };
-    pobierzDane();
-  }, []);
+  // 🔁 Odświeżanie danych przy każdym powrocie na ekran
+  useFocusEffect(
+    useCallback(() => {
+      const pobierzDane = async () => {
+        const docRef = doc(db, 'appState', 'uczestnik1');
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const dane = snap.data();
+          console.log('📦 Zadania specjalne:', dane.specjalne);
+          setZadania(dane.specjalne || {});
+        }
+      };
+      pobierzDane();
+    }, [])
+  );
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>

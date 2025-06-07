@@ -4,12 +4,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    Image,
-    ImageBackground,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
+  Image,
+  ImageBackground,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
 } from 'react-native';
 
 export default function ZadanieSpecjalne() {
@@ -21,6 +21,15 @@ export default function ZadanieSpecjalne() {
   const [status, setStatus] = useState(null); // null | 'pending' | 'accepted'
   const [wiadomosc, setWiadomosc] = useState('');
 
+  // 🔄 Reset stanu przy zmianie ID
+  useEffect(() => {
+    setLocalUri(null);
+    setFirebaseUri(null);
+    setStatus(null);
+    setWiadomosc('');
+  }, [id]);
+
+  // 🔁 Pobierz dane z Firestore
   useEffect(() => {
     const pobierzStatus = async () => {
       const docRef = doc(db, 'appState', 'uczestnik1');
