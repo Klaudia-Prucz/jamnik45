@@ -1,3 +1,6 @@
+import { db } from '@/firebaseConfig';
+import { useRouter } from 'expo-router';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   Dimensions,
@@ -10,7 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,7 +26,6 @@ export default function Zlap() {
   const total = 5; // ile trzeba złapać
   const duration = 1000; // czas widoczności
 
-  // główna logika: pokazuje/zamyka prezent cyklicznie
   useEffect(() => {
     if (finished) return;
 
@@ -48,6 +49,24 @@ export default function Zlap() {
     setPosition({ top, left });
   };
 
+  const oznaczGreJakoUkonczona = async () => {
+    try {
+      const docRef = doc(db, 'appState', 'uczestnik1');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const dane = snap.data();
+        const ukonczone = dane.zrecznosciowe || [];
+        if (!ukonczone.includes('zlap')) {
+          await updateDoc(docRef, {
+            zrecznosciowe: [...ukonczone, 'zlap'],
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Błąd zapisu gry zlap:', e);
+    }
+  };
+
   const handlePress = () => {
     if (!finished) {
       const now = count + 1;
@@ -55,6 +74,7 @@ export default function Zlap() {
       setShow(false);
       if (now >= total) {
         setFinished(true);
+        oznaczGreJakoUkonczona();
       }
     }
   };

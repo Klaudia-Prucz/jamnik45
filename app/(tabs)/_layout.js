@@ -43,28 +43,38 @@ export default function TabLayout() {
         },
       })}
     >
-      {/* Widoczne w tab barze */}
+      {/* Ekrany widoczne w tab barze */}
       <Tabs.Screen name="strona-glowna" options={{ title: 'Strona Główna' }} />
       <Tabs.Screen name="zadania" options={{ title: 'Zadania' }} />
       <Tabs.Screen name="pomoc" options={{ title: 'Pomoc' }} />
       <Tabs.Screen name="statystyki" options={{ title: 'Statystyki' }} />
 
-      {/* Ukryte z tab bara, ale dostępne przez router.push */}
-      <Tabs.Screen name="zadania/quizy" options={{ href: null }} />
-      <Tabs.Screen name="zadania/specjalne" options={{ href: null }} />
-      <Tabs.Screen name="zadania/roznice" options={{ href: null }} />
-      <Tabs.Screen name="zadania/zrecznosciowe" options={{ href: null }} />
-      <Tabs.Screen name="zadania/quizy/[id]" options={{ href: null }} />
+      {/* Ukryte ekrany - dostępne tylko przez router.push */}
       <Tabs.Screen name="gift" options={{ href: null }} />
-      <Tabs.Screen name="zadania/quizy/index" options={{ href: null }} />
-      <Tabs.Screen name="zadania/rebusy/[id]" options={{ href: null }} />
-      <Tabs.Screen name="zadania/rebusy/index" options={{ href: null }} />
-      <Tabs.Screen name="zadania/zrecznosciowe/[id]" options={{ href: null }} />
-      <Tabs.Screen name="zadania/zrecznosciowe/index" options={{ href: null }} />
-      <Tabs.Screen name="zadania/specjalne/[id]" options={{ href: null }} />
-      <Tabs.Screen name="zadania/specjalne/index" options={{ href: null }} />
-      
 
+<Tabs.Screen name="zadania/zrecznosciowe/kliknij" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/memory" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/reakcja" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/rzut" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/shake" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/sound" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/traf" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/unik" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/zlap" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/znajdz" options={{ href: null }} />
+<Tabs.Screen name="zadania/zrecznosciowe/index" options={{ href: null }} />
+
+
+      <Tabs.Screen name="zadania/quizy" options={{ href: null }} />
+      <Tabs.Screen name="zadania/quizy/index" options={{ href: null }} />
+      <Tabs.Screen name="zadania/quizy/[id]" options={{ href: null }} />
+
+      <Tabs.Screen name="zadania/specjalne" options={{ href: null }} />
+      <Tabs.Screen name="zadania/specjalne/index" options={{ href: null }} />
+      <Tabs.Screen name="zadania/specjalne/[id]" options={{ href: null }} />
+
+      <Tabs.Screen name="zadania/rebusy/index" options={{ href: null }} />
+      <Tabs.Screen name="zadania/rebusy/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

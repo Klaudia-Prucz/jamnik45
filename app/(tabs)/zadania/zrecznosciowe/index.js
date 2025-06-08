@@ -1,7 +1,7 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebaseConfig';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { doc, getDoc } from 'firebase/firestore';
+import { useCallback, useState } from 'react';
 import {
   ImageBackground,
   Platform,
@@ -20,28 +20,31 @@ export default function ListaMiniGier() {
 
   const paths = [
     'zlap',
-    'pamiec',
+    'memory',
     'kliknij',
     'reakcja',
     'traf',
     'unik',
     'rzut',
     'shake',
-    'kierunek',
-    'dotknij',
+    'sound',
+    'znajdz',
   ];
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        setUkonczone(dane.zrecznosciowe || []);
-      }
-    };
-    fetchData();
-  }, []);
+  const fetchData = async () => {
+    const docRef = doc(db, 'appState', 'uczestnik1');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const dane = snap.data();
+      setUkonczone(dane.zrecznosciowe || []);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   return (
     <ImageBackground
@@ -113,8 +116,7 @@ const styles = StyleSheet.create({
     margin: 10,
   },
   kafelekDone: {
-    backgroundColor: '#ccc',
-    opacity: 0.6,
+    backgroundColor: '#4CAF50',
   },
   kafelekText: {
     color: '#FFF',
