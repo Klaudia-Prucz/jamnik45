@@ -10,8 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { db } from '@/firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { supabase } from '@/supabaseClient';
 
 const EMOJI = ['🎁', '🎄', '🎈', '🎉', '🍭', '🎊', '🧸', '🍬'];
 
@@ -31,25 +30,40 @@ export default function MemoryGra({ onSuccess }) {
   const [matched, setMatched] = useState([]);
   const [moves, setMoves] = useState(0);
   const [status, setStatus] = useState(null);
-
-  const oznaczGreJakoUkonczona = async () => {
-    const docRef = doc(db, 'appState', 'uczestnik1');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const dane = snap.data();
-      const ukonczone = dane.zrecznosciowe || [];
-      if (!ukonczone.includes('memory')) {
-        await updateDoc(docRef, {
-          zrecznosciowe: [...ukonczone, 'memory'],
-        });
-      }
-    }
-  };
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     const duplicated = [...EMOJI.slice(0, 6), ...EMOJI.slice(0, 6)];
     setCards(shuffle(duplicated));
+
+    // Get user ID
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    getUser();
   }, []);
+
+  const oznaczGreJakoUkonczona = async () => {
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', 'memory')
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: 'memory',
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
+    }
+  };
 
   useEffect(() => {
     if (selected.length === 2) {

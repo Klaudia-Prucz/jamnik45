@@ -10,8 +10,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { db } from '@/firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { supabase } from '@/supabaseClient';
 
 const rundy = [
   { emoji: ['🍎', '🍊', '🍌', '🐶'], niepasuje: '🐶' },
@@ -25,7 +24,16 @@ export default function GraLogiczna({ onSuccess }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [błędy, setBłędy] = useState(0);
-  const [status, setStatus] = useState('ready'); // ready | playing | win | fail
+  const [status, setStatus] = useState('ready');
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    fetchUser();
+  }, []);
 
   const startGame = () => {
     setIndex(0);
@@ -34,20 +42,23 @@ export default function GraLogiczna({ onSuccess }) {
   };
 
   const oznaczGreJakoUkonczona = async () => {
-    try {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        const ukonczone = dane.zrecznosciowe || [];
-        if (!ukonczone.includes('logiczna')) {
-          await updateDoc(docRef, {
-            zrecznosciowe: [...ukonczone, 'logiczna'],
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('Błąd zapisu gry logiczna:', e);
+    if (!userId) return;
+
+    const { data } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', 'logiczna')
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: 'logiczna',
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
     }
   };
 
@@ -76,7 +87,7 @@ export default function GraLogiczna({ onSuccess }) {
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
-      <SafeAreaView style={styles.safe}>      
+      <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
           {status === 'ready' && (
             <TouchableOpacity style={styles.startButton} onPress={startGame}>

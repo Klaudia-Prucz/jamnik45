@@ -1,37 +1,48 @@
-import { db } from '@/firebaseConfig';
 import { useRouter } from 'expo-router';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useState } from 'react';
 import {
-    ImageBackground,
-    Platform,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ImageBackground,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { supabase } from '@/supabaseClient';
 
 export default function ReakcjaGra({ onSuccess }) {
   const router = useRouter();
   const [status, setStatus] = useState('ready'); // ready | waiting | now | win | fail
   const [message, setMessage] = useState('Kliknij, aby rozpocząć');
   const [timeoutId, setTimeoutId] = useState(null);
-  const [startTime, setStartTime] = useState(null);
   const [successCount, setSuccessCount] = useState(0);
+  const [userId, setUserId] = useState(null);
+
+  const getUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) setUserId(user.id);
+  };
 
   const oznaczGreJakoUkonczona = async () => {
-    const docRef = doc(db, 'appState', 'uczestnik1');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const dane = snap.data();
-      const ukonczone = dane.zrecznosciowe || [];
-      if (!ukonczone.includes('reakcja')) {
-        await updateDoc(docRef, {
-          zrecznosciowe: [...ukonczone, 'reakcja'],
-        });
-      }
+    if (!userId) await getUser();
+
+    const { data, error } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', 'reakcja')
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: 'reakcja',
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
     }
   };
 
@@ -39,18 +50,17 @@ export default function ReakcjaGra({ onSuccess }) {
     setStatus('waiting');
     setMessage('Czekaj na sygnał...');
     const delay = Math.floor(Math.random() * 3000) + 2000;
+
     const id = setTimeout(() => {
       setStatus('now');
       setMessage('KLIKNIJ TERAZ!');
-      setStartTime(Date.now());
-
       const failTimeout = setTimeout(() => {
         setStatus('fail');
         setMessage('⏱️ Za wolno!');
       }, 800);
-
       setTimeoutId(failTimeout);
     }, delay);
+
     setTimeoutId(id);
   };
 

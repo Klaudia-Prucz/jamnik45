@@ -1,25 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ImageBackground,
-  SafeAreaView,
-  Platform,
-  StatusBar,
-  TouchableOpacity,
-} from 'react-native';
+import { supabase } from '@/supabaseClient';
 import { useRouter } from 'expo-router';
-import { db } from '@/firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import {
+  ImageBackground,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-const EMOJI_POOL = [/* jak wcześniej */];
+const EMOJI_POOL = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦉', '🦇', '🐍', '🦖', '🐢', '🐙', '🦑', '🦞', '🦀', '🐡', '🐠', '🐳', '🦈', '🐊', '🦓', '🦍', '🦧', '🦒', '🐫', '🐘', '🦣'];
 const CELE = ['🐱', '🐶', '🐯', '🦁', '🐻'];
 
 export default function ZnajdzEmoji({ onSuccess }) {
   const router = useRouter();
   const [klikniete, setKlikniete] = useState([]);
   const [emojiGrid, setEmojiGrid] = useState([]);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     const shuffled = [...EMOJI_POOL].sort(() => 0.5 - Math.random());
@@ -34,16 +34,27 @@ export default function ZnajdzEmoji({ onSuccess }) {
   }, [klikniete]);
 
   const oznaczGreJakoUkonczona = async () => {
-    const docRef = doc(db, 'appState', 'uczestnik1');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const dane = snap.data();
-      const ukonczone = dane.zrecznosciowe || [];
-      if (!ukonczone.includes('znajdz')) {
-        await updateDoc(docRef, {
-          zrecznosciowe: [...ukonczone, 'znajdz'],
-        });
-      }
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setUserId(user.id);
+    }
+
+    const { data } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', 'znajdz')
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: 'znajdz',
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
     }
   };
 

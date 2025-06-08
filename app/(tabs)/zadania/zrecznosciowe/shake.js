@@ -10,8 +10,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { db } from '@/firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { supabase } from '@/supabaseClient';
 
 const pytania = [
   { pytanie: 'Ile nóg ma pająk?', odpowiedzi: ['6', '8', '10'], poprawna: '8' },
@@ -24,7 +23,13 @@ export default function SzybkiQuiz({ onSuccess }) {
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [startTime, setStartTime] = useState(null);
-  const [status, setStatus] = useState('ready'); // ready | playing | win | fail
+  const [status, setStatus] = useState('ready');
+  const [userId, setUserId] = useState(null);
+
+  const getUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) setUserId(user.id);
+  };
 
   useEffect(() => {
     if (status === 'playing') {
@@ -33,16 +38,23 @@ export default function SzybkiQuiz({ onSuccess }) {
   }, [status]);
 
   const oznaczGreJakoUkonczona = async () => {
-    const docRef = doc(db, 'appState', 'uczestnik1');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const dane = snap.data();
-      const ukonczone = dane.zrecznosciowe || [];
-      if (!ukonczone.includes('szybkiquiz')) {
-        await updateDoc(docRef, {
-          zrecznosciowe: [...ukonczone, 'szybkiquiz'],
-        });
-      }
+    if (!userId) await getUser();
+
+    const { data } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', 'szybkiquiz')
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: 'szybkiquiz',
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
     }
   };
 

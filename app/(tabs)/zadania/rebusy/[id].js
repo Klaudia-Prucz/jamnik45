@@ -15,57 +15,53 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { rebusy } from './rebusy';
-import { db } from '@/firebaseConfig';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { supabase } from '@/supabaseClient';
 
 export default function RebusZadanie() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
 
   const [odpowiedz, setOdpowiedz] = useState('');
-  const [status, setStatus] = useState(null); // 'correct' | 'wrong' | null
-  const [zrobione, setZrobione] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [zapisano, setZapisano] = useState(false);
 
   const rebus = rebusy.find((r) => r.id === id);
+  const poprawna = rebus?.odpowiedz?.toLowerCase();
 
   useEffect(() => {
-    // Resetuj stan przy zmianie rebusa
     setOdpowiedz('');
     setStatus(null);
-    setZrobione(false);
+    setZapisano(false);
   }, [id]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    fetchUser();
+  }, []);
 
   const sprawdzOdpowiedz = async () => {
     Keyboard.dismiss();
     const czysta = odpowiedz.trim().toLowerCase();
-    const poprawna = rebus?.odpowiedz?.toLowerCase();
 
     if (czysta === poprawna) {
       setStatus('correct');
-      setZrobione(true);
-
-      try {
-        const docRef = doc(db, 'appState', 'uczestnik1');
-        const snap = await getDoc(docRef);
-        const dane = snap.data();
-        const poprzednie = dane?.rebusy || [];
-
-        if (!poprzednie.includes(id)) {
-          await updateDoc(docRef, {
-            rebusy: [...poprzednie, id],
-          });
-        }
-      } catch (err) {
-        console.error('❌ Błąd zapisu do Firestore:', err);
+      if (!zapisano && userId) {
+        await supabase.from('zadania').upsert({
+          user_id: userId,
+          zadanie_id: id,
+          kategoria: 'rebus',
+          status: true,
+          updated_at: new Date().toISOString(),
+        });
+        setZapisano(true);
       }
     } else {
       setStatus('wrong');
     }
-  };
-
-  const handleChange = (text) => {
-    setOdpowiedz(text);
-    if (status !== null) setStatus(null);
   };
 
   const gotowa = odpowiedz.trim().length > 0;
@@ -97,7 +93,10 @@ export default function RebusZadanie() {
                 style={styles.input}
                 placeholder="Twoja odpowiedź..."
                 value={odpowiedz}
-                onChangeText={handleChange}
+                onChangeText={(text) => {
+                  setOdpowiedz(text);
+                  if (status !== null) setStatus(null);
+                }}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -150,7 +149,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rebus: {
-    fontSize: 48,
+    fontSize: 44,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -169,6 +168,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.5,

@@ -1,21 +1,61 @@
 import { View, Text, StyleSheet, Image, SafeAreaView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../supabaseClient';
 
 export default function EkranPrezentu() {
-  const kodSejfu = '7452'; // ← wpisz tu swój właściwy kod
+  const [gotowe, setGotowe] = useState(false);
+  const [zaladowano, setZaladowano] = useState(false);
+  const kodSejfu = '7452';
+
+  useEffect(() => {
+    const sprawdzCzyWszystkoUkonczone = async () => {
+      const { data, error } = await supabase
+        .from('zadania')
+        .select('*')
+        .eq('nazwa', 'uczestnik1')
+        .single();
+
+      if (error) {
+        console.warn('Błąd pobierania:', error.message);
+        return;
+      }
+
+      const quizy = data.quizy?.length || 0;
+      const rebusy = data.rebusy?.length || 0;
+      const specjalne = data.specjalne?.length || 0;
+      const zrecznosciowe = data.zrecznosciowe?.length || 0;
+
+      const suma = quizy + rebusy + specjalne + zrecznosciowe;
+      setGotowe(suma >= 44);
+      setZaladowano(true);
+    };
+
+    sprawdzCzyWszystkoUkonczone();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.gratulacje}>🎉 GRATULACJE!</Text>
-      <Text style={styles.tekst}>W końcu możesz zobaczyć właściwy prezent.</Text>
+      {!zaladowano ? (
+        <Text style={styles.tekst}>⏳ Sprawdzanie postępu...</Text>
+      ) : gotowe ? (
+        <>
+          <Text style={styles.gratulacje}>🎉 GRATULACJE!</Text>
+          <Text style={styles.tekst}>W końcu możesz zobaczyć właściwy prezent.</Text>
 
-      <View style={styles.kodContainer}>
-        <Text style={styles.kod}>{kodSejfu}</Text>
-        <Text style={styles.podpowiedz}>Użyj tego kodu, by otworzyć sejf 🎁</Text>
-      </View>
+          <View style={styles.kodContainer}>
+            <Text style={styles.kod}>{kodSejfu}</Text>
+            <Text style={styles.podpowiedz}>Użyj tego kodu, by otworzyć sejf 🎁</Text>
+          </View>
 
-      <Text style={styles.koncoweZyczenia}>Jeszcze raz wszystkiego najlepszego! 🥳</Text>
+          <Text style={styles.koncoweZyczenia}>Jeszcze raz wszystkiego najlepszego! 🥳</Text>
 
-      <Image source={require('../../assets/end1.png')} style={styles.obrazek} />
+          <Image source={require('../../assets/end1.png')} style={styles.obrazek} />
+        </>
+      ) : (
+        <Text style={styles.tekst}>
+          🔒 Ukończ wszystkie zadania (44), by odkryć kod do sejfu!
+        </Text>
+      )}
     </SafeAreaView>
   );
 }
@@ -68,11 +108,9 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   obrazek: {
-  width: '100%',        // ← rozciąga od lewej do prawej krawędzi
-  height: 300,          // ← dopasuj do proporcji obrazka
-  resizeMode: 'cover',  // ← lub 'contain' jeśli chcesz widzieć całe
-  marginTop: 20,
-  borderRadius: 0,
-  
+    width: '100%',
+    height: 300,
+    resizeMode: 'cover',
+    marginTop: 20,
   },
 });

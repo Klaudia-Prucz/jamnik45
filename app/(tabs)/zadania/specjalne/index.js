@@ -1,80 +1,103 @@
-import { db } from '@/firebaseConfig';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import {
   ImageBackground,
+  Platform,
   SafeAreaView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { supabase } from '@/supabaseClient';
 
 export default function ListaZadanSpecjalnych() {
   const router = useRouter();
   const [zadania, setZadania] = useState({});
+  const [userId, setUserId] = useState(null);
 
-  // 🔁 Odświeżanie danych przy każdym powrocie na ekran
+  // 📥 Pobierz aktualnego użytkownika
   useFocusEffect(
     useCallback(() => {
-      const pobierzDane = async () => {
-        const docRef = doc(db, 'appState', 'uczestnik1');
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const dane = snap.data();
-          console.log('📦 Zadania specjalne:', dane.specjalne);
-          setZadania(dane.specjalne || {});
+      const fetchUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) setUserId(user.id);
+      };
+      fetchUser();
+    }, [])
+  );
+
+  // 📥 Pobierz dane specjalne
+  useFocusEffect(
+    useCallback(() => {
+      const pobierz = async () => {
+        if (!userId) return;
+
+        const { data, error } = await supabase
+          .from('zadania')
+          .select('zadanie_id, accepted')
+          .eq('user_id', userId)
+          .eq('kategoria', 'specjalne');
+
+        if (data) {
+          const mapa = {};
+          data.forEach((z) => {
+            mapa[z.zadanie_id] = { accepted: z.accepted };
+          });
+          setZadania(mapa);
         }
       };
-      pobierzDane();
-    }, [])
+      pobierz();
+    }, [userId])
   );
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
-      <SafeAreaView style={styles.wrapper}>
-        <Text style={styles.tytul}>📸 Wybierz zadanie specjalne</Text>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.wrapper}>
+          <Text style={styles.tytul}>📸 Wybierz zadanie specjalne</Text>
 
-        <View style={styles.lista}>
-          {[...Array(10)].map((_, i) => {
-            const id = String(i + 1);
-            const zadanie = zadania?.[id];
+          <View style={styles.lista}>
+            {[...Array(10)].map((_, i) => {
+              const id = String(i + 1);
+              const zadanie = zadania?.[id];
 
-            let status = 'brak';
-            if (zadanie) {
-              status = zadanie.accepted ? 'zaakceptowane' : 'oczekujące';
-            }
+              let status = 'brak';
+              if (zadanie) {
+                status = zadanie.accepted ? 'zaakceptowane' : 'oczekujące';
+              }
 
-            const ikona = {
-              zaakceptowane: '✅',
-              oczekujące: '🕒',
-              brak: '📭',
-            }[status];
+              const ikona = {
+                zaakceptowane: '✅',
+                oczekujące: '🕒',
+                brak: '📭',
+              }[status];
 
-            const kolor = {
-              zaakceptowane: '#4CAF50',
-              oczekujące: '#FFC107',
-              brak: '#3F51B5',
-            }[status];
+              const kolor = {
+                zaakceptowane: '#4CAF50',
+                oczekujące: '#FFC107',
+                brak: '#3F51B5',
+              }[status];
 
-            return (
-              <TouchableOpacity
-                key={id}
-                style={[styles.kafelek, { backgroundColor: kolor }]}
-                onPress={() => router.push(`/zadania/specjalne/${id}`)}
-              >
-                <Text style={styles.kafelekText}>
-                  {ikona} Zadanie {id}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+              return (
+                <TouchableOpacity
+                  key={id}
+                  style={[styles.kafelek, { backgroundColor: kolor }]}
+                  onPress={() => router.push(`/zadania/specjalne/${id}`)}
+                >
+                  <Text style={styles.kafelekText}>
+                    {ikona} Zadanie {id}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
+            <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
-          <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
-        </TouchableOpacity>
       </SafeAreaView>
     </ImageBackground>
   );
@@ -82,6 +105,10 @@ export default function ListaZadanSpecjalnych() {
 
 const styles = StyleSheet.create({
   tlo: { flex: 1 },
+  safe: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   wrapper: { flex: 1, padding: 20, justifyContent: 'space-between' },
   tytul: {
     fontSize: 24,
@@ -103,6 +130,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 8,
+    margin: 5,
   },
   kafelekText: {
     color: '#FFF',
@@ -112,7 +140,7 @@ const styles = StyleSheet.create({
   },
   powrot: {
     alignItems: 'center',
-    marginBottom: 50,
+    marginBottom: 40,
   },
   powrotText: {
     color: '#3F51B5',

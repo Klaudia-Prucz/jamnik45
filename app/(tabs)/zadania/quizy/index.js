@@ -1,6 +1,5 @@
-import { db } from '@/firebaseConfig';
+import { supabase } from '@/supabaseClient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import {
   ImageBackground,
@@ -18,14 +17,25 @@ export default function ListaQuizow() {
   useFocusEffect(
     useCallback(() => {
       const pobierzQuizy = async () => {
-        const docRef = doc(db, 'appState', 'uczestnik1');
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const dane = snap.data();
-          const lista = Array.isArray(dane.quizy) ? dane.quizy : [];
-          console.log('✔️ Ukonczone quizy z Firestore:', lista);
-          setUkonczoneQuizy(lista);
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('❌ Błąd autoryzacji:', userError?.message);
+          return;
         }
+
+        const { data, error } = await supabase
+          .from('zadania')
+          .select('quizy')
+          .eq('user_id', user.id)
+          .maybeSingle(); // 1 rekord na użytkownika
+
+        if (error) {
+          console.error('❌ Błąd pobierania quizów z Supabase:', error.message);
+          return;
+        }
+
+        const lista = data?.quizy || [];
+        setUkonczoneQuizy(lista);
       };
 
       pobierzQuizy();
@@ -40,18 +50,17 @@ export default function ListaQuizow() {
 
           <View style={styles.lista}>
             {[...Array(15)].map((_, i) => {
-              const id = (i + 1).toString(); // ważne: string!
+              const id = `quiz${i + 1}`;
               const ukonczony = ukonczoneQuizy.includes(id);
-              console.log(`Quiz ${id} ukończony?`, ukonczony);
 
               return (
                 <TouchableOpacity
                   key={id}
                   style={[styles.kafelek, ukonczony && styles.kafelekUkonczony]}
-                  onPress={() => router.push(`/zadania/quizy/${id}`)}
+                  onPress={() => router.push(`/zadania/quizy/${i + 1}`)}
                 >
                   <Text style={styles.kafelekText}>
-                    {ukonczony ? `✅ Quiz ${id}` : `Quiz ${id}`}
+                    {ukonczony ? `✅ Quiz ${i + 1}` : `Quiz ${i + 1}`}
                   </Text>
                 </TouchableOpacity>
               );
@@ -93,8 +102,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   kafelekUkonczony: {
-    backgroundColor: '#ccc',
-    opacity: 0.6,
+    backgroundColor: '#4CAF50', // zielony dla ukończonych
+    opacity: 1,
   },
   kafelekText: {
     color: '#FFF',

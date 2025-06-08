@@ -1,201 +1,167 @@
-import { db } from '@/firebaseConfig';
+import { supabase } from '@/supabaseClient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { arrayUnion, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   ImageBackground,
   SafeAreaView,
   StyleSheet,
   Text,
-  TouchableOpacity
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { QUIZY } from './quizyBaza';
 
 export default function Quiz() {
   const { id } = useLocalSearchParams();
-  const quizId = Array.isArray(id) ? id[0] : String(id); // poprawka
   const router = useRouter();
 
+  const quizId = (Array.isArray(id) ? id[0] : String(id)).replace('quiz', '');
   const quiz = QUIZY.find((q) => q.id === quizId);
-  const pytania = quiz?.pytania || [];
 
-  const [index, setIndex] = useState(0);
-  const [wynik, setWynik] = useState(0);
-  const [koniec, setKoniec] = useState(false);
-  const [zapisano, setZapisano] = useState(false);
-  const [wczesniejUkonczony, setWczesniejUkonczony] = useState(false);
-
-  const obecne = pytania[index];
-
-  // 🔄 reset stanu przy każdej zmianie quizId
-  useEffect(() => {
-    setIndex(0);
-    setWynik(0);
-    setKoniec(false);
-    setZapisano(false);
-    setWczesniejUkonczony(false);
-  }, [quizId]);
+  const [aktualne, setAktualne] = useState(0);
+  const [odpowiedzi, setOdpowiedzi] = useState([]);
+  const [pokazWynik, setPokazWynik] = useState(false);
+  const [poprawne, setPoprawne] = useState(0);
 
   useEffect(() => {
-    const sprawdz = async () => {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        const ukonczone = dane.quizy || [];
-        if (ukonczone.includes(quizId)) {
-          setKoniec(true);
-          setWczesniejUkonczony(true);
-        }
-      }
-    };
-    sprawdz();
-  }, [quizId]);
+    if (pokazWynik && poprawne >= 3) {
+      zapiszDoBazy();
+    }
+  }, [pokazWynik]);
 
-  const wybierzOdpowiedz = (i) => {
-    if (i === obecne.poprawna) setWynik((prev) => prev + 1);
-    if (index + 1 < pytania.length) {
-      setIndex((prev) => prev + 1);
+  const klikOdpowiedz = (index) => {
+    const nowe = [...odpowiedzi, index];
+    setOdpowiedzi(nowe);
+
+    if (nowe.length === quiz.pytania.length) {
+      const liczbaPoprawnych = nowe.filter(
+        (o, i) => o === quiz.pytania[i].poprawna
+      ).length;
+      setPoprawne(liczbaPoprawnych);
+      setPokazWynik(true);
     } else {
-      setKoniec(true);
+      setAktualne((prev) => prev + 1);
     }
   };
 
-  useEffect(() => {
-    if (koniec && !zapisano && !wczesniejUkonczony && wynik >= 3) {
-      const oznaczQuiz = async () => {
-        const docRef = doc(db, 'appState', 'uczestnik1');
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const quizy = snap.data().quizy || [];
-          if (!quizy.includes(quizId)) {
-            await updateDoc(docRef, {
-              quizy: arrayUnion(String(quizId)), // upewniamy się, że to string
-            });
-          }
-        }
-      };
-      oznaczQuiz();
-      setZapisano(true);
-    }
-  }, [koniec]);
+  const zapiszDoBazy = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-  const zresetujQuiz = () => {
-    setIndex(0);
-    setWynik(0);
-    setKoniec(false);
-    setZapisano(false);
-    setWczesniejUkonczony(false);
+    await supabase.from('zadania').insert([
+      {
+        user_id: user.id,
+        kategoria: 'quiz',
+        zadanie_id: quiz.id,
+        status: true,
+      },
+    ]);
   };
+
+  if (!quiz) {
+    return (
+      <SafeAreaView style={styles.wrapper}>
+        <Text style={styles.error}>Nie znaleziono quizu 😢</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (pokazWynik) {
+    return (
+      <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
+        <SafeAreaView style={styles.wrapper}>
+          <Text style={styles.tytul}>Wynik quizu</Text>
+          <Text style={styles.pytanie}>Poprawne odpowiedzi: {poprawne} / {quiz.pytania.length}</Text>
+          {poprawne >= 3 ? (
+            <Text style={styles.sukces}>Quiz zaliczony ✅</Text>
+          ) : (
+            <TouchableOpacity style={styles.przycisk} onPress={() => {
+              setAktualne(0);
+              setOdpowiedzi([]);
+              setPokazWynik(false);
+              setPoprawne(0);
+            }}>
+              <Text style={styles.tekst}>Spróbuj ponownie</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity style={styles.powrot} onPress={() => router.back()}>
+            <Text style={styles.powrotText}>← Powrót</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </ImageBackground>
+    );
+  }
+
+  const pytanie = quiz.pytania[aktualne];
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
-      <SafeAreaView style={styles.container}>
-        {koniec ? (
-          <>
-            {wczesniejUkonczony || wynik >= 3 ? (
-              <>
-                <Text style={styles.tytul}>
-                  🎉 {wczesniejUkonczony ? 'Quiz już wykonany' : 'Ukończono quiz!'}
-                </Text>
-                <Text style={styles.wynik}>Poprawne: {wynik} / {pytania.length}</Text>
-                <Text style={styles.wynik}>Błędne: {pytania.length - wynik}</Text>
-                <TouchableOpacity
-                  onPress={() => router.replace('/zadania/quizy')}
-                  style={styles.button}
-                >
-                  <Text style={styles.buttonText}>← Powrót do listy quizów</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text style={styles.tytul}>🙁 Nie zaliczono quizu</Text>
-                <Text style={styles.wynik}>Poprawne: {wynik} / {pytania.length}</Text>
-                <Text style={styles.wynik}>Musisz mieć co najmniej 3 poprawne odpowiedzi</Text>
-                <TouchableOpacity onPress={zresetujQuiz} style={styles.button}>
-                  <Text style={styles.buttonText}>🔁 Spróbuj ponownie</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => router.replace('/zadania/quizy')}
-                  style={[styles.button, { backgroundColor: '#777', marginTop: 12 }]}
-                >
-                  <Text style={styles.buttonText}>← Powrót do zestawów quizów</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <Text style={styles.numer}>Pytanie {index + 1} z {pytania.length}</Text>
-            <Text style={styles.pytanie}>{obecne?.pytanie}</Text>
-            {obecne?.odpowiedzi?.map((odp, i) => (
-              <TouchableOpacity key={i} onPress={() => wybierzOdpowiedz(i)} style={styles.odp}>
-                <Text style={styles.odpText}>{odp}</Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
+      <SafeAreaView style={styles.wrapper}>
+        <Text style={styles.tytul}>{quiz.nazwa}</Text>
+
+        <View style={styles.blok}>
+          <Text style={styles.pytanie}>{pytanie.pytanie}</Text>
+
+          {pytanie.odpowiedzi.map((odp, i) => (
+            <TouchableOpacity
+              key={i}
+              style={styles.odpowiedz}
+              onPress={() => klikOdpowiedz(i)}
+            >
+              <Text style={styles.odpText}>{odp}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TouchableOpacity style={styles.powrot} onPress={() => router.back()}>
+          <Text style={styles.powrotText}>← Powrót</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  tlo: {
-    flex: 1,
-    resizeMode: 'cover',
-  },
-  container: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
-  },
-  numer: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: '#555',
-    textAlign: 'center',
-  },
-  pytanie: {
+  tlo: { flex: 1 },
+  wrapper: { flex: 1, padding: 20, justifyContent: 'space-between' },
+  tytul: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  odp: {
-    backgroundColor: '#E76617',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  odpText: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  tytul: {
-    fontSize: 26,
-    fontWeight: 'bold',
     color: '#3F51B5',
-    marginBottom: 16,
     textAlign: 'center',
+    marginBottom: 20,
   },
-  wynik: {
-    fontSize: 20,
+  blok: { gap: 12 },
+  pytanie: {
+    fontSize: 18,
     color: '#000',
-    marginBottom: 10,
+    fontWeight: '600',
     textAlign: 'center',
+    marginBottom: 10,
   },
-  button: {
+  odpowiedz: {
+    backgroundColor: '#E76617',
+    padding: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  odpText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  sukces: {
+    fontSize: 20,
+    color: 'green',
+    textAlign: 'center',
+    marginVertical: 20,
+  },
+  przycisk: {
     backgroundColor: '#3F51B5',
     padding: 14,
-    borderRadius: 12,
-    alignSelf: 'center',
+    borderRadius: 14,
+    alignItems: 'center',
     marginTop: 20,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
+  tekst: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  powrot: { marginTop: 30, alignItems: 'center' },
+  powrotText: { color: '#3F51B5', fontSize: 16, fontWeight: '600' },
+  error: { fontSize: 18, color: 'red', textAlign: 'center', marginTop: 50 },
 });

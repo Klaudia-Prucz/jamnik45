@@ -1,37 +1,49 @@
-import { db } from '@/firebaseConfig';
 import { useRouter } from 'expo-router';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-    Animated,
-    ImageBackground,
-    Platform,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  ImageBackground,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { supabase } from '@/supabaseClient';
 
 export default function RzutGra({ onSuccess }) {
   const router = useRouter();
   const [rzuty, setRzuty] = useState(0);
   const [trafione, setTrafione] = useState(0);
-  const [status, setStatus] = useState('ready'); // ready | playing | win | fail
+  const [status, setStatus] = useState('ready');
   const targetAnim = useState(new Animated.Value(0))[0];
+  const [userId, setUserId] = useState(null);
+
+  const getUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) setUserId(user.id);
+  };
 
   const oznaczGreJakoUkonczona = async () => {
-    const docRef = doc(db, 'appState', 'uczestnik1');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const dane = snap.data();
-      const ukonczone = dane.zrecznosciowe || [];
-      if (!ukonczone.includes('rzut')) {
-        await updateDoc(docRef, {
-          zrecznosciowe: [...ukonczone, 'rzut'],
-        });
-      }
+    if (!userId) await getUser();
+
+    const { data } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', 'rzut')
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: 'rzut',
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
     }
   };
 
@@ -61,21 +73,26 @@ export default function RzutGra({ onSuccess }) {
 
   const handleThrow = () => {
     if (status !== 'playing') return;
-    setRzuty((r) => r + 1);
-    targetAnim.stopAnimation((val) => {
-      if (val > 0.4 && val < 0.6) {
-        setTrafione((t) => {
-          const newT = t + 1;
-          if (newT >= 5) {
+
+    setRzuty((prev) => {
+      const newRzuty = prev + 1;
+
+      targetAnim.stopAnimation((val) => {
+        if (val > 0.4 && val < 0.6) {
+          const newTrafione = trafione + 1;
+          setTrafione(newTrafione);
+
+          if (newTrafione >= 5) {
             setStatus('win');
             oznaczGreJakoUkonczona();
             onSuccess?.();
           }
-          return newT;
-        });
-      } else if (rzuty + 1 >= 10) {
-        setStatus('fail');
-      }
+        } else if (newRzuty >= 10) {
+          setStatus('fail');
+        }
+      });
+
+      return newRzuty;
     });
   };
 

@@ -1,6 +1,4 @@
-import { db } from '@/firebaseConfig';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import {
   ImageBackground,
@@ -13,10 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { supabase } from '@/supabaseClient';
 
 export default function ListaMiniGier() {
   const router = useRouter();
   const [ukonczone, setUkonczone] = useState([]);
+  const [userId, setUserId] = useState(null);
 
   const paths = [
     'zlap',
@@ -31,19 +31,36 @@ export default function ListaMiniGier() {
     'znajdz',
   ];
 
-  const fetchData = async () => {
-    const docRef = doc(db, 'appState', 'uczestnik1');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const dane = snap.data();
-      setUkonczone(dane.zrecznosciowe || []);
-    }
-  };
-
+  // 📥 Pobierz aktualnego użytkownika
   useFocusEffect(
     useCallback(() => {
-      fetchData();
+      const fetchUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) setUserId(user.id);
+      };
+      fetchUser();
     }, [])
+  );
+
+  // 📥 Pobierz wykonane zadania z kategorii 'zrecznosciowe'
+  useFocusEffect(
+    useCallback(() => {
+      const fetchData = async () => {
+        if (!userId) return;
+
+        const { data, error } = await supabase
+          .from('zadania')
+          .select('zadanie_id')
+          .eq('user_id', userId)
+          .eq('kategoria', 'zrecznosciowe');
+
+        if (data) {
+          const lista = data.map((z) => z.zadanie_id);
+          setUkonczone(lista);
+        }
+      };
+      fetchData();
+    }, [userId])
   );
 
   return (
@@ -84,11 +101,11 @@ export default function ListaMiniGier() {
 
 const styles = StyleSheet.create({
   tlo: { flex: 1 },
-  safe: { flex: 1 },
+  safe: { flex: 1, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
   scrollContent: { flexGrow: 1 },
   innerWrapper: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 20,
+    paddingTop: 20,
     paddingBottom: 40,
     paddingHorizontal: 20,
     justifyContent: 'space-between',

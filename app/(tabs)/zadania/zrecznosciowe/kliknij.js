@@ -1,17 +1,16 @@
-import { db } from '@/firebaseConfig';
 import { useRouter } from 'expo-router';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    ImageBackground,
-    Platform,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ImageBackground,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { supabase } from '@/supabaseClient';
 
 export default function KliknijGra({ onSuccess }) {
   const router = useRouter();
@@ -19,37 +18,56 @@ export default function KliknijGra({ onSuccess }) {
   const [timeLeft, setTimeLeft] = useState(10);
   const [status, setStatus] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [userId, setUserId] = useState(null);
 
-  const oznaczGreJakoUkonczona = async (nazwaGry) => {
-  const docRef = doc(db, 'appState', 'uczestnik1');
-  const snap = await getDoc(docRef);
-  if (snap.exists()) {
-    const dane = snap.data();
-    const ukonczone = dane.zrecznosciowe || [];
-    if (!ukonczone.includes(nazwaGry)) {
-      await updateDoc(docRef, {
-        zrecznosciowe: [...ukonczone, nazwaGry],
-      });
-    }
-  }
-};
+  // Pobierz user_id
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    fetchUser();
+  }, []);
 
-useEffect(() => {
-  let timer;
-  if (isPlaying && timeLeft > 0) {
-    timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-  } else if (isPlaying && timeLeft === 0) {
-    setIsPlaying(false);
-    if (clicks >= 45) {
-      setStatus('win');
-      oznaczGreJakoUkonczona('kliknij');
-      onSuccess?.();
-    } else {
-      setStatus('fail');
+  // Zapisz jako ukończone
+  const oznaczGreJakoUkonczona = async (zadanieId) => {
+    if (!userId) return;
+
+    const { data, error } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', zadanieId)
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: zadanieId,
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
     }
-  }
-  return () => clearTimeout(timer);
-}, [isPlaying, timeLeft]);
+  };
+
+  // Licznik czasu
+  useEffect(() => {
+    let timer;
+    if (isPlaying && timeLeft > 0) {
+      timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+    } else if (isPlaying && timeLeft === 0) {
+      setIsPlaying(false);
+      if (clicks >= 45) {
+        setStatus('win');
+        oznaczGreJakoUkonczona('kliknij');
+        onSuccess?.();
+      } else {
+        setStatus('fail');
+      }
+    }
+    return () => clearTimeout(timer);
+  }, [isPlaying, timeLeft]);
 
   const startGame = () => {
     setClicks(0);
@@ -97,9 +115,7 @@ useEffect(() => {
 }
 
 const styles = StyleSheet.create({
-  tlo: {
-    flex: 1,
-  },
+  tlo: { flex: 1 },
   safe: {
     flex: 1,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,

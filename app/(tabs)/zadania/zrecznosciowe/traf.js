@@ -1,16 +1,15 @@
-import { db } from '@/firebaseConfig';
+import { supabase } from '@/supabaseClient';
 import { useRouter } from 'expo-router';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    ImageBackground,
-    Platform,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ImageBackground,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function TrafGra({ onSuccess }) {
@@ -18,7 +17,16 @@ export default function TrafGra({ onSuccess }) {
   const [targets, setTargets] = useState([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(15);
-  const [status, setStatus] = useState('ready'); // ready | playing | win | fail
+  const [status, setStatus] = useState('ready');
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     let interval;
@@ -48,16 +56,23 @@ export default function TrafGra({ onSuccess }) {
   }, [status]);
 
   const oznaczGreJakoUkonczona = async () => {
-    const docRef = doc(db, 'appState', 'uczestnik1');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const dane = snap.data();
-      const ukonczone = dane.zrecznosciowe || [];
-      if (!ukonczone.includes('traf')) {
-        await updateDoc(docRef, {
-          zrecznosciowe: [...ukonczone, 'traf'],
-        });
-      }
+    if (!userId) return;
+
+    const { data } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', 'traf')
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: 'traf',
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
     }
   };
 

@@ -1,7 +1,5 @@
-import { db } from '@/firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   Image,
@@ -11,6 +9,7 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
+import { supabase } from '@/supabaseClient';
 
 export default function ZadanieSpecjalne() {
   const { id } = useLocalSearchParams();
@@ -19,32 +18,42 @@ export default function ZadanieSpecjalne() {
   const [localUri, setLocalUri] = useState(null);
   const [firebaseUri, setFirebaseUri] = useState(null);
   const [status, setStatus] = useState(null); // null | 'pending' | 'accepted'
-  const [wiadomosc, setWiadomosc] = useState('');
+  const [userId, setUserId] = useState(null);
 
-  // 🔄 Reset stanu przy zmianie ID
   useEffect(() => {
     setLocalUri(null);
     setFirebaseUri(null);
     setStatus(null);
-    setWiadomosc('');
   }, [id]);
 
-  // 🔁 Pobierz dane z Firestore
+  // 🔐 Pobierz aktualnego użytkownika
   useEffect(() => {
-    const pobierzStatus = async () => {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        const zadanie = dane?.specjalne?.[id];
-        if (zadanie?.url) {
-          setFirebaseUri(zadanie.url);
-          setStatus(zadanie.accepted ? 'accepted' : 'pending');
-        }
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    fetchUser();
+  }, []);
+
+  // 📥 Pobierz status i zdjęcie
+  useEffect(() => {
+    const pobierz = async () => {
+      if (!userId) return;
+      const { data, error } = await supabase
+        .from('zadania')
+        .select('zdjecie_url, status, accepted')
+        .eq('user_id', userId)
+        .eq('zadanie_id', id)
+        .eq('kategoria', 'specjalne')
+        .single();
+
+      if (data) {
+        setFirebaseUri(data.zdjecie_url);
+        setStatus(data.accepted ? 'accepted' : 'pending');
       }
     };
-    pobierzStatus();
-  }, [id]);
+    pobierz();
+  }, [userId, id]);
 
   const wybierzZdjecie = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -55,22 +64,19 @@ export default function ZadanieSpecjalne() {
     if (!result.canceled && result.assets.length > 0) {
       const uri = result.assets[0].uri;
       setLocalUri(uri);
-      setWiadomosc(
-        '⚠️ Zdjęcie zapisane lokalnie. Prześlij je organizatorowi, aby zaliczyć zadanie.'
-      );
 
-      try {
-        const docRef = doc(db, 'appState', 'uczestnik1');
-        await updateDoc(docRef, {
-          [`specjalne.${id}`]: {
-            url: uri,
-            accepted: false,
-          },
-        });
-        setStatus('pending');
-      } catch (err) {
-        console.error('❌ Błąd zapisu do Firestore:', err);
-      }
+      // zapis do bazy
+      await supabase.from('zadania').upsert({
+        user_id: userId,
+        zadanie_id: id,
+        kategoria: 'specjalne',
+        status: true,
+        zdjecie_url: uri,
+        accepted: false,
+        updated_at: new Date().toISOString(),
+      });
+
+      setStatus('pending');
     }
   };
 
@@ -98,17 +104,13 @@ export default function ZadanieSpecjalne() {
                 ]}
               >
                 {status === 'accepted'
-                  ? '✅ Zdjęcie zaakceptowane przez organizatora'
-                  : '🕒 Zdjęcie oczekuje na akceptację'}
+                  ? '✅ Zdjęcie zaakceptowane'
+                  : '🕒 Oczekuje na akceptację'}
               </Text>
             )}
           </>
         ) : (
           <Text style={styles.info}>Nie przesłano jeszcze zdjęcia</Text>
-        )}
-
-        {wiadomosc !== '' && (
-          <Text style={styles.ostrzezenie}>{wiadomosc}</Text>
         )}
 
         <TouchableOpacity style={styles.button} onPress={wybierzZdjecie}>
@@ -172,17 +174,6 @@ const styles = StyleSheet.create({
   },
   statusPending: {
     color: '#FFC107',
-  },
-  ostrzezenie: {
-    backgroundColor: '#FFF3CD',
-    borderColor: '#FFEEBA',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    color: '#856404',
-    marginBottom: 20,
-    textAlign: 'center',
-    fontSize: 14,
   },
   button: {
     backgroundColor: '#E76617',

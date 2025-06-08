@@ -1,28 +1,35 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    ImageBackground,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ImageBackground,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+  Alert,
 } from 'react-native';
+import { supabase } from '../supabaseClient';
 
 export default function EkranLogowania() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [haslo, setHaslo] = useState('');
 
-  const zaloguj = () => {
-    if (email === 'Klaudia' && haslo === 'jamnik45') {
-      router.replace('/(tabs)/strona-glowna');
+  const zaloguj = async () => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: haslo,
+    });
+
+    if (error) {
+      Alert.alert('Błąd logowania 🐾', 'Niepoprawny email lub hasło.');
     } else {
-      alert('Niepoprawny email lub hasło 🐾');
+      router.replace('/(tabs)/strona-glowna');
     }
   };
 
@@ -38,12 +45,12 @@ export default function EkranLogowania() {
             <Text style={styles.podtytul}>Zaloguj się, aby rozpocząć urodzinową przygodę!</Text>
 
             <TextInput
-              placeholder="Imię"
+              placeholder="Email"
               value={email}
               onChangeText={setEmail}
               style={styles.input}
-              textContentType="none"
-              autoComplete="off"
+              textContentType="emailAddress"
+              autoCapitalize="none"
             />
 
             <TextInput
@@ -52,8 +59,8 @@ export default function EkranLogowania() {
               value={haslo}
               onChangeText={setHaslo}
               style={styles.input}
-              textContentType="none"
-              autoComplete="off"
+              textContentType="password"
+              autoCapitalize="none"
             />
 
             <TouchableOpacity style={styles.przycisk} onPress={zaloguj}>
@@ -75,7 +82,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    marginTop: '85%', // możesz zmienić na '70%' żeby było trochę wyżej
+    marginTop: '85%',
     padding: 30,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,

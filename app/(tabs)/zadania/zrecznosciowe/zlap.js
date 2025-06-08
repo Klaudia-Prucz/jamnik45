@@ -1,6 +1,4 @@
-import { db } from '@/firebaseConfig';
 import { useRouter } from 'expo-router';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   Dimensions,
@@ -13,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { supabase } from '@/supabaseClient';
 
 const { width, height } = Dimensions.get('window');
 
@@ -22,9 +21,18 @@ export default function Zlap() {
   const [count, setCount] = useState(0);
   const [show, setShow] = useState(true);
   const [finished, setFinished] = useState(false);
+  const [userId, setUserId] = useState(null);
 
   const total = 5; // ile trzeba złapać
   const duration = 1000; // czas widoczności
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     if (finished) return;
@@ -50,20 +58,23 @@ export default function Zlap() {
   };
 
   const oznaczGreJakoUkonczona = async () => {
-    try {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        const ukonczone = dane.zrecznosciowe || [];
-        if (!ukonczone.includes('zlap')) {
-          await updateDoc(docRef, {
-            zrecznosciowe: [...ukonczone, 'zlap'],
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('Błąd zapisu gry zlap:', e);
+    if (!userId) return;
+
+    const { data } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', 'zlap')
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: 'zlap',
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
     }
   };
 
@@ -110,9 +121,7 @@ export default function Zlap() {
 }
 
 const styles = StyleSheet.create({
-  tlo: {
-    flex: 1,
-  },
+  tlo: { flex: 1 },
   safe: {
     flex: 1,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
@@ -151,9 +160,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#E76617',
   },
-  emoji: {
-    fontSize: 36,
-  },
+  emoji: { fontSize: 36 },
   sukces: {
     marginTop: 30,
     fontSize: 22,

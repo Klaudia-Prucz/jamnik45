@@ -1,18 +1,17 @@
-import { db } from '@/firebaseConfig';
+import { supabase } from '@/supabaseClient';
 import { useRouter } from 'expo-router';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import {
-    Animated,
-    ImageBackground,
-    PanResponder,
-    Platform,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  ImageBackground,
+  PanResponder,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function UnikGra({ onSuccess }) {
@@ -22,6 +21,15 @@ export default function UnikGra({ onSuccess }) {
   const [status, setStatus] = useState('ready');
   const [obstacles, setObstacles] = useState([]);
   const playerLane = useRef(new Animated.Value(0)).current;
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     let timer;
@@ -48,20 +56,23 @@ export default function UnikGra({ onSuccess }) {
   }, [status]);
 
   const oznaczGreJakoUkonczona = async () => {
-    try {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        const ukonczone = dane.zrecznosciowe || [];
-        if (!ukonczone.includes('unik')) {
-          await updateDoc(docRef, {
-            zrecznosciowe: [...ukonczone, 'unik'],
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('Błąd zapisu gry unik:', e);
+    if (!userId) return;
+
+    const { data } = await supabase
+      .from('zadania')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('zadanie_id', 'unik')
+      .eq('kategoria', 'zrecznosciowe');
+
+    if (!data || data.length === 0) {
+      await supabase.from('zadania').insert([
+        {
+          user_id: userId,
+          zadanie_id: 'unik',
+          kategoria: 'zrecznosciowe',
+        },
+      ]);
     }
   };
 

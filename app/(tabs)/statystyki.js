@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
   ImageBackground,
-  SafeAreaView,
   Platform,
-  StatusBar,
+  SafeAreaView,
   ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
+import { supabase } from '../../supabaseClient';
 
 export default function Statystyki() {
+  const [userId, setUserId] = useState(null);
   const [daneZadan, setDaneZadan] = useState({
     quizy: 0,
     rebusy: 0,
@@ -22,31 +22,53 @@ export default function Statystyki() {
     procent: 0,
   });
 
+  // 🔑 Pobierz ID użytkownika
   useEffect(() => {
-    const fetchStats = async () => {
-      const ref = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const dane = snap.data();
-        const quizy = dane.quizy || [];
-        const rebusy = dane.rebusy || [];
-        const zrecznosciowe = dane.zrecznosciowe || [];
-        const specjalne = dane.specjalne || {};
-
-        const q = quizy.length;
-        const r = rebusy.length;
-        const z = zrecznosciowe.length;
-        const s = Object.keys(specjalne).length;
-
-        const razem = q + r + z + s;
-        const procent = Math.round((razem / 45) * 100);
-
-        setDaneZadan({ quizy: q, rebusy: r, zrecznosciowe: z, specjalne: s, razem, procent });
+    const fetchUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      } else if (error) {
+        console.warn('❌ Błąd pobierania użytkownika:', error.message);
       }
+    };
+    fetchUser();
+  }, []);
+
+  // 📊 Pobierz dane statystyczne użytkownika
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchStats = async () => {
+      const { data, error } = await supabase
+        .from('zadania')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.warn('❌ Błąd pobierania danych zadań:', error.message);
+        return;
+      }
+
+      const quizy = data.quizy || [];
+      const rebusy = data.rebusy || [];
+      const zrecznosciowe = data.zrecznosciowe || [];
+      const specjalne = data.specjalne || [];
+
+      const q = quizy.length;
+      const r = rebusy.length;
+      const z = zrecznosciowe.length;
+      const s = specjalne.length;
+
+      const razem = q + r + z + s;
+      const procent = Math.round((razem / 45) * 100);
+
+      setDaneZadan({ quizy: q, rebusy: r, zrecznosciowe: z, specjalne: s, razem, procent });
     };
 
     fetchStats();
-  }, []);
+  }, [userId]);
 
   const renderProgress = (label, done, total) => (
     <View style={styles.barWrapper}>

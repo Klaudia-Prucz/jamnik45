@@ -1,6 +1,4 @@
-import { db } from '@/firebaseConfig';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import {
   ImageBackground,
@@ -12,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { supabase } from '@/supabaseClient';
 
 export default function ListaRebusow() {
   const router = useRouter();
@@ -20,12 +19,23 @@ export default function ListaRebusow() {
   useFocusEffect(
     useCallback(() => {
       const pobierzRebusy = async () => {
-        const docRef = doc(db, 'appState', 'uczestnik1');
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const dane = snap.data();
-          setUkonczoneRebusy(dane.rebusy || []);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('zadania')
+          .select('zadanie_id')
+          .eq('user_id', user.id)
+          .eq('kategoria', 'rebus')
+          .eq('status', true);
+
+        if (error) {
+          console.error('❌ Błąd pobierania rebusów:', error.message);
+          return;
         }
+
+        const lista = data.map((r) => r.zadanie_id);
+        setUkonczoneRebusy(lista);
       };
 
       pobierzRebusy();
@@ -45,11 +55,12 @@ export default function ListaRebusow() {
           <View style={styles.lista}>
             {[...Array(10)].map((_, i) => {
               const id = String(i + 1);
-              const ukonczony = ukonczoneRebusy.includes(id);
+              const zadanieId = `rebus${id}`;
+              const ukonczony = ukonczoneRebusy.includes(zadanieId);
 
               return (
                 <TouchableOpacity
-                  key={id}
+                  key={zadanieId}
                   style={[styles.kafelek, ukonczony && styles.kafelekUkonczony]}
                   onPress={() => router.push(`/zadania/rebusy/${id}`)}
                 >
