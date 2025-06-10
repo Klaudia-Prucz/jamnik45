@@ -28,7 +28,7 @@ export default function ListaZadanSpecjalnych() {
     }, [])
   );
 
-  // 📥 Pobierz dane specjalne
+  // 📥 Pobierz pole `specjalne` z jednego wiersza
   useFocusEffect(
     useCallback(() => {
       const pobierz = async () => {
@@ -36,16 +36,18 @@ export default function ListaZadanSpecjalnych() {
 
         const { data, error } = await supabase
           .from('zadania')
-          .select('zadanie_id, accepted')
+          .select('specjalne')
           .eq('user_id', userId)
-          .eq('kategoria', 'specjalne');
+          .maybeSingle();
 
-        if (data) {
-          const mapa = {};
-          data.forEach((z) => {
-            mapa[z.zadanie_id] = { accepted: z.accepted };
-          });
-          setZadania(mapa);
+        if (data?.specjalne) {
+          setZadania(data.specjalne);
+        } else {
+          setZadania({});
+        }
+
+        if (error) {
+          console.error('❌ Błąd pobierania specjalnych zadań:', error.message);
         }
       };
       pobierz();
@@ -61,11 +63,11 @@ export default function ListaZadanSpecjalnych() {
           <View style={styles.lista}>
             {[...Array(10)].map((_, i) => {
               const id = String(i + 1);
-              const zadanie = zadania?.[id];
+              const dane = zadania?.[id];
 
               let status = 'brak';
-              if (zadanie) {
-                status = zadanie.accepted ? 'zaakceptowane' : 'oczekujące';
+              if (dane) {
+                status = dane.accepted ? 'zaakceptowane' : 'oczekujące';
               }
 
               const ikona = {

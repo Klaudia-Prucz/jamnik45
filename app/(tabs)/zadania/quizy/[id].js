@@ -16,12 +16,21 @@ export default function Quiz() {
   const router = useRouter();
 
   const quizId = (Array.isArray(id) ? id[0] : String(id)).replace('quiz', '');
-  const quiz = QUIZY.find((q) => q.id === quizId);
 
+  const [quiz, setQuiz] = useState(null);
   const [aktualne, setAktualne] = useState(0);
   const [odpowiedzi, setOdpowiedzi] = useState([]);
   const [pokazWynik, setPokazWynik] = useState(false);
   const [poprawne, setPoprawne] = useState(0);
+
+  useEffect(() => {
+    const znaleziony = QUIZY.find((q) => q.id === quizId);
+    setQuiz(znaleziony);
+    setAktualne(0);
+    setOdpowiedzi([]);
+    setPokazWynik(false);
+    setPoprawne(0);
+  }, [quizId]);
 
   useEffect(() => {
     if (pokazWynik && poprawne >= 3) {
@@ -29,33 +38,62 @@ export default function Quiz() {
     }
   }, [pokazWynik]);
 
-  const klikOdpowiedz = (index) => {
-    const nowe = [...odpowiedzi, index];
-    setOdpowiedzi(nowe);
-
-    if (nowe.length === quiz.pytania.length) {
-      const liczbaPoprawnych = nowe.filter(
-        (o, i) => o === quiz.pytania[i].poprawna
-      ).length;
-      setPoprawne(liczbaPoprawnych);
-      setPokazWynik(true);
-    } else {
-      setAktualne((prev) => prev + 1);
-    }
-  };
-
   const zapiszDoBazy = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (!user || userError) {
+      console.warn('Brak zalogowanego użytkownika:', userError);
+      return;
+    }
 
-    await supabase.from('zadania').insert([
-      {
-        user_id: user.id,
-        kategoria: 'quiz',
-        zadanie_id: quiz.id,
-        status: true,
-      },
-    ]);
+    let { data: rekordy } = await supabase
+      .from('zadania')
+      .select('*')
+      .eq('user_id', user.id);
+
+    let rekord = rekordy?.[0];
+
+    if (!rekord) {
+      const { data: nowy, error: insertError } = await supabase
+        .from('zadania')
+        .insert([
+          {
+            user_id: user.id,
+            quizy: [],
+            rebusy: [],
+            zrecznosciowe: [],
+            specjalne: {},
+          }
+        ])
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('❌ Nie udało się utworzyć nowego wpisu:', insertError);
+        return;
+      }
+
+      rekord = nowy;
+    }
+
+    const aktualneQuizy = rekord.quizy || [];
+
+    if (aktualneQuizy.includes(quiz.id)) {
+      console.log('Quiz już zapisany');
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('zadania')
+      .update({
+        quizy: [...aktualneQuizy, quiz.id],
+      })
+      .eq('user_id', user.id);
+
+    if (updateError) {
+      console.error('❌ Błąd podczas zapisu:', updateError.message);
+    } else {
+      console.log('✅ Quiz zapisany do bazy!');
+    }
   };
 
   if (!quiz) {
@@ -71,16 +109,21 @@ export default function Quiz() {
       <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
         <SafeAreaView style={styles.wrapper}>
           <Text style={styles.tytul}>Wynik quizu</Text>
-          <Text style={styles.pytanie}>Poprawne odpowiedzi: {poprawne} / {quiz.pytania.length}</Text>
+          <Text style={styles.pytanie}>
+            Poprawne odpowiedzi: {poprawne} / {quiz.pytania.length}
+          </Text>
           {poprawne >= 3 ? (
             <Text style={styles.sukces}>Quiz zaliczony ✅</Text>
           ) : (
-            <TouchableOpacity style={styles.przycisk} onPress={() => {
-              setAktualne(0);
-              setOdpowiedzi([]);
-              setPokazWynik(false);
-              setPoprawne(0);
-            }}>
+            <TouchableOpacity
+              style={styles.przycisk}
+              onPress={() => {
+                setAktualne(0);
+                setOdpowiedzi([]);
+                setPokazWynik(false);
+                setPoprawne(0);
+              }}
+            >
               <Text style={styles.tekst}>Spróbuj ponownie</Text>
             </TouchableOpacity>
           )}
@@ -94,6 +137,21 @@ export default function Quiz() {
   }
 
   const pytanie = quiz.pytania[aktualne];
+
+  function klikOdpowiedz(index) {
+    const nowe = [...odpowiedzi, index];
+    setOdpowiedzi(nowe);
+
+    if (nowe.length === quiz.pytania.length) {
+      const liczbaPoprawnych = nowe.filter(
+        (o, i) => o === quiz.pytania[i].poprawna
+      ).length;
+      setPoprawne(liczbaPoprawnych);
+      setPokazWynik(true);
+    } else {
+      setAktualne((prev) => prev + 1);
+    }
+  }
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>

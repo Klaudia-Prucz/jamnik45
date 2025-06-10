@@ -13,20 +13,20 @@ export default function Zadania() {
   const wykonane = 45;
   const wszystkie = 45;
 
-  const renderKafelek = (tekst, onPress, kolor = '#E76617') => (
+  const renderKafelek = (tekst, onPress, kolor = '#3F51B5') => (
     <TouchableOpacity
       key={tekst}
-      style={[styles.kategoriaKafelek, { backgroundColor: kolor }]}
+      style={[styles.kategoriaKafelek, { borderColor: kolor }]}
       onPress={onPress}
     >
-      <Text style={styles.kategoriaTekst}>{tekst}</Text>
+      <Text style={[styles.kategoriaTekst, { color: kolor }]}>{tekst}</Text>
     </TouchableOpacity>
   );
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.wrapper}>
-        <Text style={styles.tytul}>🎯 Wybierz kategorię zadań</Text>
+        <Text style={styles.tytul}> Wybierz kategorię zadań</Text>
 
         <View style={styles.kategorieSiatka}>
           {renderKafelek('🧠 Quizy', () => router.push('/zadania/quizy'))}
@@ -43,7 +43,7 @@ export default function Zadania() {
           onPress={() => router.push('/gift')}
           disabled={wykonane < wszystkie}
         >
-          <Text style={styles.prezentTekst}>🎁 Odbierz prezent</Text>
+          <Text style={styles.prezentTekst}>Odbierz prezent</Text>
           <Text style={styles.prezentOpis}>
             Dostępny po wykonaniu wszystkich zadań!
           </Text>
@@ -85,9 +85,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 15,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   kategoriaTekst: {
-    color: '#FFF',
     fontWeight: 'bold',
     fontSize: 16,
     textAlign: 'center',
@@ -101,12 +107,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFF',
     shadowColor: '#000',
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.5,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
-    elevation: 5,
-    width: '100%',
-    marginTop: 20,
+    elevation: 56,
+    width: '200%',
+    marginTop: 50,
   },
   prezentTekst: {
     color: '#FFF',

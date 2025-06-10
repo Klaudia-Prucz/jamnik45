@@ -42,7 +42,7 @@ export default function ListaMiniGier() {
     }, [])
   );
 
-  // 📥 Pobierz wykonane zadania z kategorii 'zrecznosciowe'
+  // 📥 Pobierz wykonane mini-gry (zrecznosciowe) z jednej kolumny
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
@@ -50,13 +50,12 @@ export default function ListaMiniGier() {
 
         const { data, error } = await supabase
           .from('zadania')
-          .select('zadanie_id')
+          .select('zrecznosciowe')
           .eq('user_id', userId)
-          .eq('kategoria', 'zrecznosciowe');
+          .maybeSingle();
 
         if (data) {
-          const lista = data.map((z) => z.zadanie_id);
-          setUkonczone(lista);
+          setUkonczone(data.zrecznosciowe || []);
         }
       };
       fetchData();
@@ -73,6 +72,7 @@ export default function ListaMiniGier() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.innerWrapper}>
             <Text style={styles.tytul}>🎮 Wybierz mini-grę</Text>
+
             <View style={styles.lista}>
               {paths.map((path, index) => {
                 const isDone = ukonczone.includes(path);
@@ -89,6 +89,7 @@ export default function ListaMiniGier() {
                 );
               })}
             </View>
+
             <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
               <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
             </TouchableOpacity>

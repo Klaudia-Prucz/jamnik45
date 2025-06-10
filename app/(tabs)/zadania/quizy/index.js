@@ -34,7 +34,8 @@ export default function ListaQuizow() {
           return;
         }
 
-        const lista = data?.quizy || [];
+        const lista = Array.isArray(data?.quizy) ? data.quizy : [];
+        console.log('✅ Ukończone quizy:', lista);
         setUkonczoneQuizy(lista);
       };
 
@@ -50,7 +51,7 @@ export default function ListaQuizow() {
 
           <View style={styles.lista}>
             {[...Array(15)].map((_, i) => {
-              const id = `quiz${i + 1}`;
+              const id = `${i + 1}`; // Dopasowane do formatu z bazy ["2", "3"]
               const ukonczony = ukonczoneQuizy.includes(id);
 
               return (
@@ -102,8 +103,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   kafelekUkonczony: {
-    backgroundColor: '#4CAF50', // zielony dla ukończonych
-    opacity: 1,
+    backgroundColor: '#4CAF50',
   },
   kafelekText: {
     color: '#FFF',

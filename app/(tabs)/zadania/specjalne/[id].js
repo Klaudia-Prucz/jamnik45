@@ -35,21 +35,19 @@ export default function ZadanieSpecjalne() {
     fetchUser();
   }, []);
 
-  // 📥 Pobierz status i zdjęcie
+  // 📥 Pobierz dane z pola `specjalne` (jsonb)
   useEffect(() => {
     const pobierz = async () => {
       if (!userId) return;
       const { data, error } = await supabase
         .from('zadania')
-        .select('zdjecie_url, status, accepted')
+        .select('specjalne')
         .eq('user_id', userId)
-        .eq('zadanie_id', id)
-        .eq('kategoria', 'specjalne')
-        .single();
+        .maybeSingle();
 
-      if (data) {
-        setFirebaseUri(data.zdjecie_url);
-        setStatus(data.accepted ? 'accepted' : 'pending');
+      if (data?.specjalne && data.specjalne[id]) {
+        setFirebaseUri(data.specjalne[id].zdjecie_url);
+        setStatus(data.specjalne[id].accepted ? 'accepted' : 'pending');
       }
     };
     pobierz();
@@ -65,18 +63,30 @@ export default function ZadanieSpecjalne() {
       const uri = result.assets[0].uri;
       setLocalUri(uri);
 
-      // zapis do bazy
-      await supabase.from('zadania').upsert({
-        user_id: userId,
-        zadanie_id: id,
-        kategoria: 'specjalne',
-        status: true,
+      // pobierz obecny obiekt specjalne
+      const { data: rekord, error } = await supabase
+        .from('zadania')
+        .select('specjalne')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      let aktualne = rekord?.specjalne || {};
+
+      aktualne[id] = {
         zdjecie_url: uri,
         accepted: false,
-        updated_at: new Date().toISOString(),
-      });
+      };
 
-      setStatus('pending');
+      const { error: updateError } = await supabase
+        .from('zadania')
+        .update({ specjalne: aktualne })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.error('❌ Błąd podczas zapisu specjalnego zadania:', updateError.message);
+      } else {
+        setStatus('pending');
+      }
     }
   };
 

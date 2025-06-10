@@ -24,17 +24,16 @@ export default function ListaRebusow() {
 
         const { data, error } = await supabase
           .from('zadania')
-          .select('zadanie_id')
+          .select('rebusy')
           .eq('user_id', user.id)
-          .eq('kategoria', 'rebus')
-          .eq('status', true);
+          .maybeSingle();
 
         if (error) {
           console.error('❌ Błąd pobierania rebusów:', error.message);
           return;
         }
 
-        const lista = data.map((r) => r.zadanie_id);
+        const lista = data?.rebusy || [];
         setUkonczoneRebusy(lista);
       };
 
@@ -82,9 +81,7 @@ export default function ListaRebusow() {
 }
 
 const styles = StyleSheet.create({
-  tlo: {
-    flex: 1,
-  },
+  tlo: { flex: 1 },
   safe: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -119,8 +116,8 @@ const styles = StyleSheet.create({
     margin: 5,
   },
   kafelekUkonczony: {
-    backgroundColor: '#ccc',
-    opacity: 0.6,
+    backgroundColor: '#4CAF50',
+    opacity: 1,
   },
   kafelekText: {
     color: '#FFF',

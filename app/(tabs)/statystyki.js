@@ -42,24 +42,24 @@ export default function Statystyki() {
     const fetchStats = async () => {
       const { data, error } = await supabase
         .from('zadania')
-        .select('*')
+        .select('quizy, rebusy, zrecznosciowe, specjalne')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.warn('❌ Błąd pobierania danych zadań:', error.message);
         return;
       }
 
-      const quizy = data.quizy || [];
-      const rebusy = data.rebusy || [];
-      const zrecznosciowe = data.zrecznosciowe || [];
-      const specjalne = data.specjalne || [];
+      const quizy = data?.quizy || [];
+      const rebusy = data?.rebusy || [];
+      const zrecznosciowe = data?.zrecznosciowe || [];
+      const specjalne = data?.specjalne || {};
 
       const q = quizy.length;
       const r = rebusy.length;
       const z = zrecznosciowe.length;
-      const s = specjalne.length;
+      const s = Object.keys(specjalne).length;
 
       const razem = q + r + z + s;
       const procent = Math.round((razem / 45) * 100);
@@ -83,7 +83,7 @@ export default function Statystyki() {
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}> 
         <ScrollView contentContainerStyle={styles.wrapper}>
-          <Text style={styles.header}>📊 Statystyki</Text>
+          <Text style={styles.header}>Statystyki</Text>
           <View style={styles.card}>
             {renderProgress('Quizy', daneZadan.quizy, 15)}
             {renderProgress('Rebusy', daneZadan.rebusy, 10)}
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#3F51B5',
     marginVertical: 20,
   },
   card: {

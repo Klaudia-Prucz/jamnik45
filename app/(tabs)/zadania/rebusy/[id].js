@@ -49,15 +49,40 @@ export default function RebusZadanie() {
 
     if (czysta === poprawna) {
       setStatus('correct');
+
       if (!zapisano && userId) {
-        await supabase.from('zadania').upsert({
-          user_id: userId,
-          zadanie_id: id,
-          kategoria: 'rebus',
-          status: true,
-          updated_at: new Date().toISOString(),
-        });
-        setZapisano(true);
+        const zadanieId = `rebus${id}`;
+
+        let { data: rekord, error } = await supabase
+          .from('zadania')
+          .select('rebusy')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (error) {
+          console.error('❌ Błąd pobierania:', error.message);
+          return;
+        }
+
+        const aktualne = rekord?.rebusy || [];
+
+        if (!aktualne.includes(zadanieId)) {
+          const nowe = [...aktualne, zadanieId];
+
+          const { error: updateError } = await supabase
+            .from('zadania')
+            .update({ rebusy: nowe })
+            .eq('user_id', userId);
+
+          if (updateError) {
+            console.error('❌ Błąd zapisu:', updateError.message);
+          } else {
+            console.log('✅ Zapisano rebus:', zadanieId);
+            setZapisano(true);
+          }
+        } else {
+          setZapisano(true);
+        }
       }
     } else {
       setStatus('wrong');

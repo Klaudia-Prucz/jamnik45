@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -9,81 +9,83 @@ import {
   StatusBar,
   TouchableOpacity,
 } from 'react-native';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { supabase } from '@/supabaseClient';
 
 export default function StronaGlowna() {
   const router = useRouter();
   const [procent, setProcent] = useState(0);
   const [szybkieZadanie, setSzybkieZadanie] = useState(null);
+  const [userId, setUserId] = useState(null);
 
-  const pobierzProcent = async () => {
-    try {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        let liczba = 0;
-        if (Array.isArray(dane.quizy)) liczba += dane.quizy.length;
-        if (Array.isArray(dane.rebusy)) liczba += dane.rebusy.length;
-        if (Array.isArray(dane.zrecznosciowe)) liczba += dane.zrecznosciowe.length;
-        if (typeof dane.specjalne === 'object') liczba += Object.keys(dane.specjalne).length;
-        const progres = Math.min(Math.round((liczba / 45) * 100), 100);
-        setProcent(progres);
-      }
-    } catch (error) {
-      console.error('Błąd podczas pobierania danych:', error);
-    }
-  };
-
-  const pobierzSzybkieZadanie = async () => {
-    try {
-      const docRef = doc(db, 'appState', 'uczestnik1');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const dane = snap.data();
-        const wszystkie = [
-          ...Array(15).fill(null).map((_, i) => ({ typ: 'quizy', id: `${i}` })),
-          ...Array(10).fill(null).map((_, i) => ({ typ: 'rebusy', id: `${i}` })),
-          ...Array(10).fill(null).map((_, i) => ({ typ: 'specjalne', id: `${i}` })),
-          ...Array(10).fill(null).map((_, i) => ({ typ: 'zrecznosciowe', id: `${i}` })),
-        ];
-
-        const wykonane = new Set([
-          ...(dane.quizy || []),
-          ...(dane.rebusy || []),
-          ...(dane.zrecznosciowe || []),
-          ...Object.keys(dane.specjalne || {}),
-        ]);
-
-        const niewykonane = wszystkie.filter((z) => !wykonane.has(z.id));
-
-        if (niewykonane.length > 0) {
-          const losowe = niewykonane[Math.floor(Math.random() * niewykonane.length)];
-          setSzybkieZadanie(losowe);
-        } else {
-          setSzybkieZadanie(null);
-        }
-      }
-    } catch (e) {
-      console.error('Błąd pobierania szybkiego zadania:', e);
-    }
-  };
-
+  // 📥 Pobierz aktualnego użytkownika
   useFocusEffect(
     useCallback(() => {
-      pobierzProcent();
-      pobierzSzybkieZadanie();
+      const fetchUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) setUserId(user.id);
+      };
+      fetchUser();
     }, [])
+  );
+
+  // 📥 Pobierz dane i przelicz procent
+  useFocusEffect(
+    useCallback(() => {
+      const fetchData = async () => {
+        if (!userId) return;
+
+        const { data, error } = await supabase
+          .from('zadania')
+          .select('quizy, rebusy, zrecznosciowe, specjalne')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (error) {
+          console.error('❌ Błąd pobierania danych:', error.message);
+          return;
+        }
+
+        if (data) {
+          const { quizy = [], rebusy = [], zrecznosciowe = [], specjalne = {} } = data;
+          const wykonane = new Set([
+            ...quizy,
+            ...rebusy,
+            ...zrecznosciowe,
+            ...Object.keys(specjalne),
+          ]);
+
+          const progres = Math.min(Math.round((wykonane.size / 45) * 100), 100);
+          setProcent(progres);
+
+          // Wybierz losowe szybkie zadanie
+          const wszystkie = [
+            ...Array(15).fill(null).map((_, i) => ({ typ: 'quizy', id: `${i}` })),
+            ...Array(10).fill(null).map((_, i) => ({ typ: 'rebusy', id: `${i}` })),
+            ...Array(10).fill(null).map((_, i) => ({ typ: 'specjalne', id: `${i}` })),
+            ...Array(10).fill(null).map((_, i) => ({ typ: 'zrecznosciowe', id: `${i}` })),
+          ];
+
+          const niewykonane = wszystkie.filter(z => !wykonane.has(z.id));
+          if (niewykonane.length > 0) {
+            const losowe = niewykonane[Math.floor(Math.random() * niewykonane.length)];
+            setSzybkieZadanie(losowe);
+          } else {
+            setSzybkieZadanie(null);
+          }
+        }
+      };
+
+      fetchData();
+    }, [userId])
   );
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
-          <Text style={styles.naglowek}>🎉 Witaj w Questniku45!</Text>
+          <Text style={styles.naglowek}>Witaj w swojej urodzinowej appce!</Text>
 
           <View style={styles.postepContainer}>
             <Text style={styles.procent}>{procent}%</Text>
@@ -99,7 +101,6 @@ export default function StronaGlowna() {
             >
               <Feather name="zap" size={28} color="#E76617" />
               <Text style={styles.cardText}>Losuj zadanie</Text>
-      
             </TouchableOpacity>
           )}
 
@@ -124,9 +125,7 @@ export default function StronaGlowna() {
 }
 
 const styles = StyleSheet.create({
-  tlo: {
-    flex: 1,
-  },
+  tlo: { flex: 1 },
   safe: {
     flex: 1,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
@@ -141,8 +140,13 @@ const styles = StyleSheet.create({
   naglowek: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#fff',
-    marginVertical: 20,
+    color: '#3F51B5',
+    textAlign: 'center',
+    marginTop: 40,
+    marginBottom: 20,
+    textShadowColor: 'rgba(255,255,255,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   postepContainer: {
     alignItems: 'center',
@@ -183,12 +187,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#3F51B5',
-  },
-  szybkieTytul: {
-    marginTop: 6,
-    fontSize: 16,
-    fontStyle: 'italic',
-    color: '#000',
-    textAlign: 'center',
   },
 });
