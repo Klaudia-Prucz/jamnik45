@@ -26,7 +26,7 @@ export default function ZadanieSpecjalne() {
     setStatus(null);
   }, [id]);
 
-  // 🔐 Pobierz aktualnego użytkownika
+
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();

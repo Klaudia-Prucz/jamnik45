@@ -1,159 +1,171 @@
-import React, { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-  View,
+  Image,
+  ImageBackground,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ImageBackground,
-  SafeAreaView,
-  Platform,
-  StatusBar,
+  View,
+  FlatList,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
 
-const EMOJI = ['🎁', '🎄', '🎈', '🎉', '🍭', '🎊', '🧸', '🍬'];
-
-const shuffle = (array) => {
-  let cloned = [...array];
-  for (let i = cloned.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [cloned[i], cloned[j]] = [cloned[j], cloned[i]];
-  }
-  return cloned;
+// Obrazy kart (6 par)
+const images = {
+  1: require('@/assets/memory/1.png'),
+  2: require('@/assets/memory/2.png'),
+  3: require('@/assets/memory/3.png'),
+  4: require('@/assets/memory/4.png'),
+  5: require('@/assets/memory/5.png'),
+  6: require('@/assets/memory/6.png'),
 };
 
-export default function MemoryGra({ onSuccess }) {
+const pairs = [1, 2, 3, 4, 5, 6];
+
+function shuffle(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+export default function MemoryGame() {
   const router = useRouter();
   const [cards, setCards] = useState([]);
-  const [selected, setSelected] = useState([]);
+  const [flipped, setFlipped] = useState([]);
   const [matched, setMatched] = useState([]);
-  const [moves, setMoves] = useState(0);
-  const [status, setStatus] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [finished, setFinished] = useState(false);
 
   useEffect(() => {
-    const duplicated = [...EMOJI.slice(0, 6), ...EMOJI.slice(0, 6)];
-    setCards(shuffle(duplicated));
-
-    // Get user ID
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+    const fetchUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (user) setUserId(user.id);
+      if (error) console.warn('Błąd pobierania użytkownika:', error.message);
     };
-    getUser();
+    fetchUser();
   }, []);
+
+  useEffect(() => {
+    const setup = () => {
+      const duplicated = [...pairs, ...pairs];
+      const shuffled = shuffle(duplicated.map((value, index) => ({
+        id: index,
+        value,
+      })));
+      setCards(shuffled);
+    };
+    setup();
+  }, []);
+
+  const handleFlip = (card) => {
+    if (flipped.length === 2 || flipped.includes(card.id) || matched.includes(card.id)) return;
+
+    const newFlipped = [...flipped, card.id];
+    setFlipped(newFlipped);
+
+    if (newFlipped.length === 2) {
+      const [first, second] = newFlipped.map(id => cards.find(c => c.id === id));
+      if (first.value === second.value) {
+        setMatched(prev => [...prev, first.id, second.id]);
+        setTimeout(() => {
+          setFlipped([]);
+          if (matched.length + 2 === cards.length) {
+            setFinished(true);
+            oznaczGreJakoUkonczona();
+          }
+        }, 500);
+      } else {
+        setTimeout(() => setFlipped([]), 1000);
+      }
+    }
+  };
 
   const oznaczGreJakoUkonczona = async () => {
     if (!userId) return;
 
     const { data, error } = await supabase
       .from('zadania')
-      .select('id')
+      .select('zrecznosciowe')
       .eq('user_id', userId)
-      .eq('zadanie_id', 'memory')
-      .eq('kategoria', 'zrecznosciowe');
+      .maybeSingle();
 
-    if (!data || data.length === 0) {
-      await supabase.from('zadania').insert([
-        {
-          user_id: userId,
-          zadanie_id: 'memory',
-          kategoria: 'zrecznosciowe',
-        },
-      ]);
+    if (error) {
+      console.warn('❌ Błąd odczytu zadania:', error.message);
+      return;
     }
-  };
 
-  useEffect(() => {
-    if (selected.length === 2) {
-      const [first, second] = selected;
-      const isMatch = cards[first] === cards[second];
-
-      setTimeout(() => {
-        if (isMatch) {
-          setMatched((prev) => [...prev, first, second]);
-        }
-        setSelected([]);
-        setMoves((prev) => prev + 1);
-      }, 800);
+    if (!data) {
+      console.warn('❗ Nie znaleziono rekordu dla użytkownika');
+      return;
     }
-  }, [selected]);
 
-  useEffect(() => {
-    if (matched.length === cards.length && cards.length > 0) {
-      if (moves <= 20) {
-        setStatus('win');
-        oznaczGreJakoUkonczona();
-        onSuccess?.();
+    const aktualne = data.zrecznosciowe || [];
+
+    if (!aktualne.includes('memory')) {
+      const zaktualizowane = [...aktualne, 'memory'];
+      const { error: updateError } = await supabase
+        .from('zadania')
+        .update({ zrecznosciowe: zaktualizowane })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.warn('❌ Błąd aktualizacji zrecznosciowe:', updateError.message);
       } else {
-        setStatus('fail');
+        console.log('✅ Gra "memory" zapisana jako ukończona!');
       }
-    }
-  }, [matched]);
-
-  const handlePress = (index) => {
-    if (selected.includes(index) || matched.includes(index)) return;
-    if (selected.length < 2) {
-      setSelected((prev) => [...prev, index]);
+    } else {
+      console.log('ℹ️ Gra "memory" była już wcześniej ukończona.');
     }
   };
 
-  const resetGame = () => {
-    const duplicated = [...EMOJI.slice(0, 6), ...EMOJI.slice(0, 6)];
-    setCards(shuffle(duplicated));
-    setMatched([]);
-    setSelected([]);
-    setMoves(0);
-    setStatus(null);
+  const renderItem = ({ item }) => {
+    const isVisible = flipped.includes(item.id) || matched.includes(item.id);
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => handleFlip(item)}
+        activeOpacity={0.8}
+      >
+        {isVisible ? (
+          <Image
+            source={images[item.value]}
+            style={styles.cardImage}
+          />
+        ) : (
+          <View style={styles.cardBack} />
+        )}
+      </TouchableOpacity>
+    );
   };
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
-          <View style={styles.topContent}>
-            <Text style={styles.tytul}>🧠 Znajdź pary!</Text>
-            <Text style={styles.podtytul}>Ruchy: {moves} / 20</Text>
+          <Text style={styles.tytul}>Memory – znajdź pary</Text>
+          <Text style={styles.tekst}>Odkrywaj karty i znajdź wszystkie pasujące pary.</Text>
 
-            <View style={styles.grid}>
-              {cards.map((card, index) => {
-                const isVisible = selected.includes(index) || matched.includes(index);
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[styles.card, matched.includes(index) && styles.cardMatched]}
-                    onPress={() => handlePress(index)}
-                  >
-                    <Text style={styles.cardText}>{isVisible ? card : '❓'}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+          <FlatList
+            data={cards}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            numColumns={3}
+            contentContainerStyle={styles.grid}
+            scrollEnabled={false}
+          />
 
-            {status === 'win' && (
-              <>
-                <Text style={[styles.infoText, styles.zaliczone]}>🎉 Udało się! Gra zaliczona!</Text>
-                <TouchableOpacity style={styles.button} onPress={() => router.replace('/zadania/zrecznosciowe')}>
-                  <Text style={styles.buttonText}>⬅ Wróć do wyboru gry</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            {status === 'fail' && (
-              <>
-                <Text style={[styles.infoText, styles.niezaliczone]}>😿 Za dużo ruchów!</Text>
-                <TouchableOpacity style={styles.button} onPress={resetGame}>
-                  <Text style={styles.buttonText}>Spróbuj ponownie</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
+          {finished && <Text style={styles.sukces}>Gra ukończona!</Text>}
 
-          {status === null && (
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <Text style={styles.backButtonText}>⬅ Wróć do wyboru gry</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania/zrecznosciowe')}>
+            <Text style={styles.powrotText}>← Wybierz inną grę</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </ImageBackground>
@@ -168,83 +180,60 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     flex: 1,
-    padding: 16,
-  },
-  topContent: {
-    flex: 1,
+    padding: 20,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   tytul: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginVertical: 12,
-    color: '#FFE0B2',
+    color: '#3F51B5',
+    marginTop: 20,
+    marginBottom: 10,
     textAlign: 'center',
   },
-  podtytul: {
-    fontSize: 18,
-    color: '#FFD580',
-    marginBottom: 16,
+  tekst: {
+    fontSize: 16,
+    color: '#333',
     textAlign: 'center',
-    fontWeight: '500',
+    marginBottom: 20,
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   card: {
-    width: 60,
-    height: 60,
-    margin: 5,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
+    width: 80,
+    height: 80,
+    margin: 10,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E76617',
+    overflow: 'hidden',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  cardMatched: {
-    backgroundColor: '#e0ffe0',
-  },
-  cardText: {
-    fontSize: 26,
-  },
-  infoText: {
-    fontSize: 20,
-    marginTop: 20,
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
-  zaliczone: {
-    color: '#66ffcc',
-  },
-  niezaliczone: {
-    color: '#ff6666',
-  },
-  button: {
-    marginTop: 12,
+  cardBack: {
     backgroundColor: '#E76617',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    width: '100%',
+    height: '100%',
   },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
-  backButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  backButtonText: {
-    color: '#FFD580',
-    fontSize: 16,
+  sukces: {
+    marginTop: 30,
+    fontSize: 22,
+    color: '#4CAF50',
     fontWeight: 'bold',
-    textAlign: 'center',
+  },
+  powrot: {
+    marginTop: 40,
+  },
+  powrotText: {
+    color: '#3F51B5',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

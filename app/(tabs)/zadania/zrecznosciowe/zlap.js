@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Dimensions,
+  Image,
   ImageBackground,
   Platform,
   SafeAreaView,
@@ -22,14 +23,16 @@ export default function Zlap() {
   const [show, setShow] = useState(true);
   const [finished, setFinished] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [isCorrect, setIsCorrect] = useState(true);
 
-  const total = 5; // ile trzeba złapać
-  const duration = 1000; // czas widoczności
+  const total = 10;
+  const duration = 900;
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (user) setUserId(user.id);
+      if (error) console.warn('Błąd pobierania użytkownika:', error.message);
     };
     fetchUser();
   }, []);
@@ -37,22 +40,22 @@ export default function Zlap() {
   useEffect(() => {
     if (finished) return;
 
-    if (!show) {
-      const timer = setTimeout(() => {
-        setRandomPosition();
-        setShow(true);
-      }, duration);
-      return () => clearTimeout(timer);
-    } else {
-      const timer = setTimeout(() => {
+    const timer = setTimeout(() => {
+      if (show) {
         setShow(false);
-      }, duration);
-      return () => clearTimeout(timer);
-    }
+      } else {
+        setRandomPosition();
+        setIsCorrect(Math.random() > 0.4); // 60% szans na poprawną
+        setShow(true);
+      }
+    }, duration);
+
+    return () => clearTimeout(timer);
   }, [show, finished]);
 
   const setRandomPosition = () => {
-    const top = Math.random() * (height - 200);
+    const minTop = 200; // nie zasłaniaj tekstu
+    const top = minTop + Math.random() * (height - 300);
     const left = Math.random() * (width - 100);
     setPosition({ top, left });
   };
@@ -60,52 +63,79 @@ export default function Zlap() {
   const oznaczGreJakoUkonczona = async () => {
     if (!userId) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('zadania')
-      .select('id')
+      .select('zrecznosciowe')
       .eq('user_id', userId)
-      .eq('zadanie_id', 'zlap')
-      .eq('kategoria', 'zrecznosciowe');
+      .maybeSingle();
 
-    if (!data || data.length === 0) {
-      await supabase.from('zadania').insert([
-        {
-          user_id: userId,
-          zadanie_id: 'zlap',
-          kategoria: 'zrecznosciowe',
-        },
-      ]);
+    if (error) {
+      console.warn('❌ Błąd odczytu zadania:', error.message);
+      return;
+    }
+
+    if (!data) {
+      console.warn('❗ Nie znaleziono rekordu dla użytkownika');
+      return;
+    }
+
+    const aktualne = data.zrecznosciowe || [];
+
+    if (!aktualne.includes('zlap')) {
+      const zaktualizowane = [...aktualne, 'zlap'];
+      const { error: updateError } = await supabase
+        .from('zadania')
+        .update({ zrecznosciowe: zaktualizowane })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.warn('❌ Błąd aktualizacji zrecznosciowe:', updateError.message);
+      } else {
+        console.log('✅ Gra "zlap" zapisana jako ukończona!');
+      }
+    } else {
+      console.log('ℹ️ Gra "zlap" była już wcześniej ukończona.');
     }
   };
 
   const handlePress = () => {
-    if (!finished) {
+    if (finished) return;
+
+    if (isCorrect) {
       const now = count + 1;
       setCount(now);
-      setShow(false);
       if (now >= total) {
         setFinished(true);
         oznaczGreJakoUkonczona();
       }
     }
+
+    setShow(false);
   };
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
-          <Text style={styles.tytul}>🎁 Złap prezent!</Text>
+          <Text style={styles.tytul}>👶 Tapnij młodszego Alka!</Text>
           <Text style={styles.tekst}>
-            Złap {total} prezentów, które pojawiają się losowo na ekranie.
+            Klikaj tylko tego, który Twoim zdaniem jest młodszy od tego drugiego.
           </Text>
-          <Text style={styles.wynik}>Złapano: {count} / {total}</Text>
+          <Text style={styles.wynik}>Złapano poprawnie: {count} / {total}</Text>
 
           {show && !finished && (
             <TouchableOpacity
               onPress={handlePress}
-              style={[styles.prezent, { top: position.top, left: position.left }]}
+              style={[styles.ikona, { top: position.top, left: position.left }]}
             >
-              <Text style={styles.emoji}>🎁</Text>
+              <Image
+                source={
+                  isCorrect
+                    ? require('@/assets/ikona-dobra.png')
+                    : require('@/assets/ikona-zla.png')
+                }
+                style={styles.image}
+              />
             </TouchableOpacity>
           )}
 
@@ -137,6 +167,7 @@ const styles = StyleSheet.create({
     color: '#3F51B5',
     marginTop: 20,
     marginBottom: 10,
+    textAlign: 'center',
   },
   tekst: {
     fontSize: 16,
@@ -149,18 +180,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
   },
-  prezent: {
+  ikona: {
     position: 'absolute',
     width: 80,
     height: 80,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  image: {
+    width: 80,
+    height: 80,
+    resizeMode: 'cover',
     borderRadius: 40,
-    backgroundColor: '#FFF',
     borderWidth: 2,
     borderColor: '#E76617',
   },
-  emoji: { fontSize: 36 },
   sukces: {
     marginTop: 30,
     fontSize: 22,

@@ -1,3 +1,4 @@
+import { supabase } from '@/supabaseClient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -11,55 +12,46 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { supabase } from '@/supabaseClient';
 
 export default function ListaMiniGier() {
   const router = useRouter();
   const [ukonczone, setUkonczone] = useState([]);
-  const [userId, setUserId] = useState(null);
 
   const paths = [
-    'zlap',
-    'memory',
-    'kliknij',
-    'reakcja',
-    'traf',
-    'unik',
-    'rzut',
-    'shake',
-    'sound',
-    'znajdz',
+    'zlap', 'memory', 'kliknij', 'reakcja', 'traf',
+    'unik', 'rzut', 'shake', 'sound', 'znajdz',
   ];
 
-  // 📥 Pobierz aktualnego użytkownika
-  useFocusEffect(
-    useCallback(() => {
-      const fetchUser = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) setUserId(user.id);
-      };
-      fetchUser();
-    }, [])
-  );
-
-  // 📥 Pobierz wykonane mini-gry (zrecznosciowe) z jednej kolumny
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
-        if (!userId) return;
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          console.warn('❌ Błąd pobierania użytkownika:', userError?.message);
+          return;
+        }
 
         const { data, error } = await supabase
           .from('zadania')
           .select('zrecznosciowe')
-          .eq('user_id', userId)
+          .eq('user_id', user.id)
           .maybeSingle();
 
-        if (data) {
-          setUkonczone(data.zrecznosciowe || []);
+        if (error) {
+          console.warn('❌ Błąd pobierania danych zrecznosciowe:', error.message);
+          return;
+        }
+
+        if (data?.zrecznosciowe && Array.isArray(data.zrecznosciowe)) {
+          setUkonczone(data.zrecznosciowe);
+        } else {
+          setUkonczone([]);
         }
       };
+
       fetchData();
-    }, [userId])
+    }, [])
   );
 
   return (

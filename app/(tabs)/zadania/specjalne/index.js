@@ -17,7 +17,7 @@ export default function ListaZadanSpecjalnych() {
   const [zadania, setZadania] = useState({});
   const [userId, setUserId] = useState(null);
 
-  // 📥 Pobierz aktualnego użytkownika
+
   useFocusEffect(
     useCallback(() => {
       const fetchUser = async () => {
@@ -28,7 +28,7 @@ export default function ListaZadanSpecjalnych() {
     }, [])
   );
 
-  // 📥 Pobierz pole `specjalne` z jednego wiersza
+ 
   useFocusEffect(
     useCallback(() => {
       const pobierz = async () => {
@@ -58,7 +58,7 @@ export default function ListaZadanSpecjalnych() {
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
-          <Text style={styles.tytul}>📸 Wybierz zadanie specjalne</Text>
+          <Text style={styles.tytul}>Wybierz zadanie specjalne</Text>
 
           <View style={styles.lista}>
             {[...Array(10)].map((_, i) => {
