@@ -1,6 +1,6 @@
 import { supabase } from '@/supabaseClient';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Image,
   ImageBackground,
@@ -31,7 +31,7 @@ export default function MemoryGame() {
   const [status, setStatus] = useState('loading');
   const [userId, setUserId] = useState(null);
   const [roundsPassed, setRoundsPassed] = useState(0);
-  const [showNextMessage, setShowNextMessage] = useState(false);
+  const [initialRound, setInitialRound] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -43,7 +43,7 @@ export default function MemoryGame() {
           .select('zrecznosciowe')
           .eq('user_id', user.id)
           .maybeSingle();
-        if (data?.zrecznosciowe?.includes('pamiec')) {
+        if (data?.zrecznosciowe?.includes('unik')) {
           setStatus('done');
         } else {
           setStatus('ready');
@@ -58,8 +58,8 @@ export default function MemoryGame() {
     setSequence(newSeq);
     setUserSequence([]);
     setShowSequence(true);
-    setShowNextMessage(false);
     setTimeout(() => setShowSequence(false), 2500);
+    setStatus('showing');
   };
 
   const handleChoice = (index) => {
@@ -74,13 +74,12 @@ export default function MemoryGame() {
           saveCompletion();
           setStatus('done');
         } else {
-          setShowNextMessage(true);
-          setTimeout(() => {
-            setStatus('ready');
-          }, 1000);
+          setStatus('success');
+          setInitialRound(false);
         }
       } else {
         setStatus('fail');
+        setInitialRound(false);
       }
     }
   };
@@ -94,8 +93,8 @@ export default function MemoryGame() {
       .maybeSingle();
     if (!error && data) {
       const current = data.zrecznosciowe || [];
-      if (!current.includes('pamiec')) {
-        const updated = [...current, 'pamiec'];
+      if (!current.includes('unik')) {
+        const updated = [...current, 'unik'];
         await supabase.from('zadania').update({ zrecznosciowe: updated }).eq('user_id', userId);
       }
     }
@@ -108,18 +107,20 @@ export default function MemoryGame() {
 
         {status === 'loading' && <Text style={styles.info}>Ładowanie...</Text>}
 
-        {status === 'ready' && (
+        {(status === 'ready' || status === 'success' || status === 'fail') && (
           <View style={styles.wrapper}>
-            <Text style={styles.info}>Zapamiętaj sekwencję, a potem ją odtwórz</Text>
+            {initialRound && status === 'ready' && (
+              <Text style={styles.info}>Zapamiętaj sekwencję, a potem ją odtwórz</Text>
+            )}
+            {status === 'success' && (
+              <Text style={styles.info}>Dobrze! Lecimy dalej</Text>
+            )}
+            {status === 'fail' && (
+              <Text style={styles.info}>Błędna sekwencja. Spróbuj jeszcze raz!</Text>
+            )}
             <TouchableOpacity style={styles.startButton} onPress={startRound}>
               <Text style={styles.startText}>Start</Text>
             </TouchableOpacity>
-          </View>
-        )}
-
-        {showNextMessage && (
-          <View style={styles.wrapper}>
-            <Text style={styles.info}>Dobrze! Lecimy dalej</Text>
           </View>
         )}
 
@@ -131,22 +132,13 @@ export default function MemoryGame() {
           </View>
         )}
 
-        {!showSequence && userSequence.length < sequence.length && sequence.length > 0 && (
+        {!showSequence && status === 'showing' && userSequence.length < sequence.length && sequence.length > 0 && (
           <View style={styles.choiceWrapper}>
             {images.map((img, idx) => (
               <TouchableOpacity key={idx} onPress={() => handleChoice(idx)}>
                 <Image source={img} style={styles.img} />
               </TouchableOpacity>
             ))}
-          </View>
-        )}
-
-        {status === 'fail' && (
-          <View style={styles.wrapper}>
-            <Text style={styles.info}>Błędna sekwencja. Spróbuj jeszcze raz!</Text>
-            <TouchableOpacity style={styles.startButton} onPress={startRound}>
-              <Text style={styles.startText}>Spróbuj ponownie</Text>
-            </TouchableOpacity>
           </View>
         )}
 
