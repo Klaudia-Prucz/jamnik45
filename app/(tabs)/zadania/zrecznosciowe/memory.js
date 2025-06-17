@@ -53,6 +53,29 @@ export default function MemoryGame() {
   }, []);
 
   useEffect(() => {
+    if (!userId) return;
+
+    const sprawdzCzyUkonczona = async () => {
+      const { data, error } = await supabase
+        .from('zadania')
+        .select('zrecznosciowe')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('❌ Błąd sprawdzania gry:', error.message);
+        return;
+      }
+
+      if (data?.zrecznosciowe?.includes('memory')) {
+        setFinished(true);
+      }
+    };
+
+    sprawdzCzyUkonczona();
+  }, [userId]);
+
+  useEffect(() => {
     const setup = () => {
       const duplicated = [...pairs, ...pairs];
       const shuffled = shuffle(duplicated.map((value, index) => ({
@@ -65,7 +88,7 @@ export default function MemoryGame() {
   }, []);
 
   const handleFlip = (card) => {
-    if (flipped.length === 2 || flipped.includes(card.id) || matched.includes(card.id)) return;
+    if (finished || flipped.length === 2 || flipped.includes(card.id) || matched.includes(card.id)) return;
 
     const newFlipped = [...flipped, card.id];
     setFlipped(newFlipped);
@@ -167,6 +190,15 @@ export default function MemoryGame() {
             <Text style={styles.powrotText}>← Wybierz inną grę</Text>
           </TouchableOpacity>
         </View>
+
+        {finished && (
+          <View style={styles.nakladka}>
+            <Text style={styles.tekstNakladka}>Gra została już ukończona</Text>
+            <TouchableOpacity style={styles.przyciskNakladka} onPress={() => router.replace('/zadania/zrecznosciowe')}>
+              <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -233,6 +265,32 @@ const styles = StyleSheet.create({
   },
   powrotText: {
     color: '#3F51B5',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  nakladka: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  tekstNakladka: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3F51B5',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  przyciskNakladka: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#3F51B5',
+    borderRadius: 8,
+  },
+  przyciskNakladkaText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

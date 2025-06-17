@@ -2,6 +2,7 @@ import { supabase } from '@/supabaseClient';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  Image,
   ImageBackground,
   Platform,
   SafeAreaView,
@@ -12,13 +13,15 @@ import {
   View,
 } from 'react-native';
 
-export default function TrafGra({ onSuccess }) {
+export default function TrafGra() {
   const router = useRouter();
   const [targets, setTargets] = useState([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(15);
   const [status, setStatus] = useState('ready');
   const [userId, setUserId] = useState(null);
+  const [finished, setFinished] = useState(false);
+  const [spawnTimeout, setSpawnTimeout] = useState(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -29,13 +32,30 @@ export default function TrafGra({ onSuccess }) {
   }, []);
 
   useEffect(() => {
+    if (!userId) return;
+    const checkCompletion = async () => {
+      const { data, error } = await supabase
+        .from('zadania')
+        .select('zrecznosciowe')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!error && data?.zrecznosciowe?.includes('traf')) {
+        setFinished(true);
+      }
+    };
+    checkCompletion();
+  }, [userId]);
+
+  useEffect(() => {
     let interval;
     if (status === 'playing' && timeLeft > 0) {
       interval = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     } else if (status === 'playing' && timeLeft === 0) {
-      if (score >= 10) {
+      if (spawnTimeout) clearTimeout(spawnTimeout);
+      if (score >= 15) {
         setStatus('win');
-        onSuccess?.();
+        saveCompletion();
       } else {
         setStatus('fail');
       }
@@ -49,43 +69,39 @@ export default function TrafGra({ onSuccess }) {
     }
   }, [status]);
 
-  useEffect(() => {
-    if (status === 'win') {
-      oznaczGreJakoUkonczona();
-    }
-  }, [status]);
-
-  const oznaczGreJakoUkonczona = async () => {
+  const saveCompletion = async () => {
     if (!userId) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('zadania')
-      .select('id')
+      .select('zrecznosciowe')
       .eq('user_id', userId)
-      .eq('zadanie_id', 'traf')
-      .eq('kategoria', 'zrecznosciowe');
+      .maybeSingle();
 
-    if (!data || data.length === 0) {
-      await supabase.from('zadania').insert([
-        {
-          user_id: userId,
-          zadanie_id: 'traf',
-          kategoria: 'zrecznosciowe',
-        },
-      ]);
+    if (error || !data) return;
+    const current = data.zrecznosciowe || [];
+
+    if (!current.includes('traf')) {
+      const updated = [...current, 'traf'];
+      await supabase
+        .from('zadania')
+        .update({ zrecznosciowe: updated })
+        .eq('user_id', userId);
     }
   };
 
   const spawnTarget = () => {
+    if (spawnTimeout) clearTimeout(spawnTimeout);
     const id = Date.now();
     const top = Math.random() * 60 + 20;
     const left = Math.random() * 80 + 10;
     const newTarget = { id, top, left };
-    setTargets((prev) => [...prev, newTarget]);
-    setTimeout(() => {
-      setTargets((prev) => prev.filter((t) => t.id !== id));
+    setTargets((prev) => [newTarget]);
+    const timeout = setTimeout(() => {
+      setTargets([]);
       if (status === 'playing') spawnTarget();
-    }, 800);
+    }, 1000);
+    setSpawnTimeout(timeout);
   };
 
   const startGame = () => {
@@ -100,8 +116,10 @@ export default function TrafGra({ onSuccess }) {
     setTargets((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const goBack = () => {
-    router.replace('/zadania/zrecznosciowe');
+  const handleBack = () => {
+    setStatus('ready');
+    setScore(0);
+    setTimeLeft(15);
   };
 
   return (
@@ -110,9 +128,12 @@ export default function TrafGra({ onSuccess }) {
         <View style={styles.wrapper}>
           <View style={styles.topContent}>
             {status === 'ready' && (
-              <TouchableOpacity style={styles.startButton} onPress={startGame}>
-                <Text style={styles.startText}>Rozpocznij</Text>
-              </TouchableOpacity>
+              <>
+                <Text style={styles.description}>Złap uciekającego Alka!</Text>
+                <TouchableOpacity style={styles.startButton} onPress={startGame}>
+                  <Text style={styles.startText}>Rozpocznij</Text>
+                </TouchableOpacity>
+              </>
             )}
             {status === 'playing' && (
               <>
@@ -125,25 +146,37 @@ export default function TrafGra({ onSuccess }) {
                       top: `${target.top}%`,
                       left: `${target.left}%`,
                     }]}
-                  />
+                  >
+                    <Image source={require('@/assets/traf.png')} style={styles.targetImage} />
+                  </TouchableOpacity>
                 ))}
               </>
             )}
             {status === 'win' && (
+              <View style={styles.nakladka}>
+                <Text style={styles.tekstNakladka}>🎯 Udało się! Gra zaliczona!</Text>
+                <TouchableOpacity style={styles.przyciskNakladka} onPress={() => router.replace('/zadania/zrecznosciowe')}>
+                  <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {status === 'fail' && (
               <>
-                <Text style={styles.result}>🎯 Udało się! Gra zaliczona!</Text>
-                <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania/zrecznosciowe')}>
-                  <Text style={styles.powrotText}>← Wybierz inną grę</Text>
+                <Text style={styles.result}>😿 Za mało trafień!</Text>
+                <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+                  <Text style={styles.backButtonText}>Spróbuj ponownie</Text>
                 </TouchableOpacity>
               </>
             )}
-            {status === 'fail' && <Text style={styles.result}>😿 Za mało trafień!</Text>}
           </View>
 
-          {status !== 'win' && (
-            <TouchableOpacity style={styles.backButton} onPress={goBack}>
-              <Text style={styles.backButtonText}>⬅ Wróć do zestawu gier</Text>
-            </TouchableOpacity>
+          {status === 'ready' && finished && (
+            <View style={styles.nakladka}>
+              <Text style={styles.tekstNakladka}>Gra została już ukończona</Text>
+              <TouchableOpacity style={styles.przyciskNakladka} onPress={() => router.replace('/zadania/zrecznosciowe')}>
+                <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </SafeAreaView>
@@ -156,6 +189,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
   wrapper: { flex: 1, padding: 16, justifyContent: 'space-between' },
   topContent: { flex: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  description: { fontSize: 22, color: '#3F51B5', fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
   startButton: {
     backgroundColor: '#E76617',
     paddingVertical: 16,
@@ -167,32 +201,54 @@ const styles = StyleSheet.create({
   result: { fontSize: 24, fontWeight: 'bold', color: '#222', textAlign: 'center', marginBottom: 16 },
   target: {
     position: 'absolute',
-    width: 50,
-    height: 50,
-    backgroundColor: '#FFD580',
-    borderRadius: 25,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: 'hidden',
+  },
+  targetImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   backButton: {
     alignSelf: 'center',
-    backgroundColor: '#333333',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 16,
+    backgroundColor: '#3F51B5',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    marginTop: 20,
   },
   backButtonText: {
-    color: '#ffffff',
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  powrot: {
-    marginTop: 12,
-    alignSelf: 'center',
+  nakladka: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
   },
-  powrotText: {
-    color: '#3F51B5',
-    fontSize: 16,
+  tekstNakladka: {
+    fontSize: 24,
     fontWeight: 'bold',
+    color: '#3F51B5',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  przyciskNakladka: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#3F51B5',
+    borderRadius: 8,
+  },
+  przyciskNakladkaText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

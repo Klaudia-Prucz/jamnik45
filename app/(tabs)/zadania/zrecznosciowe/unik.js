@@ -2,9 +2,8 @@ import { supabase } from '@/supabaseClient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Animated,
+  Image,
   ImageBackground,
-  PanResponder,
   Platform,
   SafeAreaView,
   StatusBar,
@@ -14,187 +13,151 @@ import {
   View,
 } from 'react-native';
 
-export default function UnikGra({ onSuccess }) {
+const images = [
+  require('@/assets/memory/1.png'),
+  require('@/assets/memory/2.png'),
+  require('@/assets/memory/3.png'),
+  require('@/assets/memory/4.png'),
+  require('@/assets/memory/5.png'),
+  require('@/assets/memory/6.png'),
+  require('@/assets/memory/7.png'),
+];
+
+export default function MemoryGame() {
   const router = useRouter();
-  const [lives, setLives] = useState(3);
-  const [timeLeft, setTimeLeft] = useState(20);
-  const [status, setStatus] = useState('ready');
-  const [obstacles, setObstacles] = useState([]);
-  const playerLane = useRef(new Animated.Value(0)).current;
+  const [sequence, setSequence] = useState([]);
+  const [userSequence, setUserSequence] = useState([]);
+  const [showSequence, setShowSequence] = useState(false);
+  const [status, setStatus] = useState('loading');
   const [userId, setUserId] = useState(null);
+  const [roundsPassed, setRoundsPassed] = useState(0);
+  const [showNextMessage, setShowNextMessage] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserId(user.id);
+      if (user) {
+        setUserId(user.id);
+        const { data } = await supabase
+          .from('zadania')
+          .select('zrecznosciowe')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (data?.zrecznosciowe?.includes('pamiec')) {
+          setStatus('done');
+        } else {
+          setStatus('ready');
+        }
+      }
     };
     fetchUser();
   }, []);
 
-  useEffect(() => {
-    let timer;
-    if (status === 'playing' && timeLeft > 0) {
-      timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
-    } else if (status === 'playing' && timeLeft === 0) {
-      setStatus('win');
-      onSuccess?.();
-    }
-    return () => clearInterval(timer);
-  }, [status, timeLeft]);
-
-  useEffect(() => {
-    if (status === 'playing') {
-      const interval = setInterval(spawnObstacle, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [status]);
-
-  useEffect(() => {
-    if (status === 'win') {
-      oznaczGreJakoUkonczona();
-    }
-  }, [status]);
-
-  const oznaczGreJakoUkonczona = async () => {
-    if (!userId) return;
-
-    const { data } = await supabase
-      .from('zadania')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('zadanie_id', 'unik')
-      .eq('kategoria', 'zrecznosciowe');
-
-    if (!data || data.length === 0) {
-      await supabase.from('zadania').insert([
-        {
-          user_id: userId,
-          zadanie_id: 'unik',
-          kategoria: 'zrecznosciowe',
-        },
-      ]);
-    }
+  const startRound = () => {
+    const newSeq = Array.from({ length: 3 }, () => Math.floor(Math.random() * 7));
+    setSequence(newSeq);
+    setUserSequence([]);
+    setShowSequence(true);
+    setShowNextMessage(false);
+    setTimeout(() => setShowSequence(false), 2500);
   };
 
-  const spawnObstacle = () => {
-    const lane = Math.round(Math.random());
-    const id = Date.now();
-    const newObs = { id, lane, left: new Animated.Value(100) };
-    setObstacles((prev) => [...prev, newObs]);
-
-    Animated.timing(newObs.left, {
-      toValue: -20,
-      duration: 3000,
-      useNativeDriver: false,
-    }).start(() => {
-      checkCollision(newObs);
-      setObstacles((prev) => prev.filter((o) => o.id !== id));
-    });
-  };
-
-  const checkCollision = (obstacle) => {
-    playerLane.stopAnimation((laneValue) => {
-      const playerPos = laneValue < 0.5 ? 0 : 1;
-      if (playerPos === obstacle.lane) {
-        setLives((prev) => {
-          const newLives = prev - 1;
-          if (newLives <= 0) setStatus('fail');
-          return newLives;
-        });
+  const handleChoice = (index) => {
+    const newSequence = [...userSequence, index];
+    setUserSequence(newSequence);
+    if (newSequence.length === sequence.length) {
+      const isCorrect = sequence.every((val, idx) => val === newSequence[idx]);
+      if (isCorrect) {
+        const nextRound = roundsPassed + 1;
+        setRoundsPassed(nextRound);
+        if (nextRound >= 5) {
+          saveCompletion();
+          setStatus('done');
+        } else {
+          setShowNextMessage(true);
+          setTimeout(() => {
+            setStatus('ready');
+          }, 1000);
+        }
+      } else {
+        setStatus('fail');
       }
-    });
+    }
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 20,
-      onPanResponderRelease: (_, gesture) => {
-        playerLane.stopAnimation(() => {
-          const target = gesture.dy < 0 ? 0 : 1;
-          Animated.timing(playerLane, {
-            toValue: target,
-            duration: 200,
-            useNativeDriver: false,
-          }).start();
-        });
-      },
-    })
-  ).current;
-
-  const startGame = () => {
-    setLives(3);
-    setTimeLeft(20);
-    setStatus('playing');
-    setObstacles([]);
-    playerLane.setValue(1);
-  };
-
-  const goBack = () => {
-    router.replace('/zadania/zrecznosciowe');
+  const saveCompletion = async () => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from('zadania')
+      .select('zrecznosciowe')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!error && data) {
+      const current = data.zrecznosciowe || [];
+      if (!current.includes('pamiec')) {
+        const updated = [...current, 'pamiec'];
+        await supabase.from('zadania').update({ zrecznosciowe: updated }).eq('user_id', userId);
+      }
+    }
   };
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}>
-        <View style={styles.wrapper} {...panResponder.panHandlers}>
-          <Text style={styles.info}>Czas: {timeLeft}s | Życia: {lives}</Text>
-          <View style={styles.playfield}>
-            <Animated.View
-              style={[
-                styles.player,
-                {
-                  top: playerLane.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['25%', '70%'],
-                  }),
-                },
-              ]}
-            >
-              <Text style={styles.emoji}>🎁</Text>
-            </Animated.View>
+        <Text style={styles.counter}>Zaliczono: {roundsPassed}/5</Text>
 
-            {obstacles.map((obs) => (
-              <Animated.View
-                key={obs.id}
-                style={[
-                  styles.obstacle,
-                  {
-                    left: obs.left.interpolate({
-                      inputRange: [0, 100],
-                      outputRange: ['0%', '100%'],
-                    }),
-                    top: obs.lane === 0 ? '25%' : '70%',
-                  },
-                ]}
-              />
-            ))}
-          </View>
+        {status === 'loading' && <Text style={styles.info}>Ładowanie...</Text>}
 
-          {status === 'ready' && (
-            <TouchableOpacity style={styles.startButton} onPress={startGame}>
+        {status === 'ready' && (
+          <View style={styles.wrapper}>
+            <Text style={styles.info}>Zapamiętaj sekwencję, a potem ją odtwórz</Text>
+            <TouchableOpacity style={styles.startButton} onPress={startRound}>
               <Text style={styles.startText}>Start</Text>
             </TouchableOpacity>
-          )}
+          </View>
+        )}
 
-          {status === 'win' && (
-            <>
-              <Text style={styles.result}>✅ Udało się uniknąć!</Text>
-              <TouchableOpacity style={styles.backButton} onPress={goBack}>
-                <Text style={styles.backButtonText}>⬅ Wróć do zestawu gier</Text>
+        {showNextMessage && (
+          <View style={styles.wrapper}>
+            <Text style={styles.info}>Dobrze! Lecimy dalej</Text>
+          </View>
+        )}
+
+        {showSequence && (
+          <View style={styles.sequenceWrapper}>
+            {sequence.map((i, idx) => (
+              <Image key={idx} source={images[i]} style={styles.img} />
+            ))}
+          </View>
+        )}
+
+        {!showSequence && userSequence.length < sequence.length && sequence.length > 0 && (
+          <View style={styles.choiceWrapper}>
+            {images.map((img, idx) => (
+              <TouchableOpacity key={idx} onPress={() => handleChoice(idx)}>
+                <Image source={img} style={styles.img} />
               </TouchableOpacity>
-            </>
-          )}
+            ))}
+          </View>
+        )}
 
-          {status === 'fail' && (
-            <Text style={styles.result}>😿 Trafiła Cię przeszkoda!</Text>
-          )}
-
-          {status !== 'win' && (
-            <TouchableOpacity style={styles.backButton} onPress={goBack}>
-              <Text style={styles.backButtonText}>⬅ Wróć do zestawu gier</Text>
+        {status === 'fail' && (
+          <View style={styles.wrapper}>
+            <Text style={styles.info}>Błędna sekwencja. Spróbuj jeszcze raz!</Text>
+            <TouchableOpacity style={styles.startButton} onPress={startRound}>
+              <Text style={styles.startText}>Spróbuj ponownie</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
+
+        {status === 'done' && (
+          <View style={styles.wrapper}>
+            <Text style={styles.info}>Zadanie zaliczone!</Text>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/zadania/zrecznosciowe')}>
+              <Text style={styles.backText}>⬅ Wróć do pozostałych gier</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -203,48 +166,27 @@ export default function UnikGra({ onSuccess }) {
 const styles = StyleSheet.create({
   tlo: { flex: 1 },
   safe: { flex: 1, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
-  wrapper: { flex: 1, padding: 16 },
-  info: { color: '#fff', fontSize: 18, textAlign: 'center', marginBottom: 8 },
-  playfield: { flex: 1, backgroundColor: 'transparent' },
-  player: {
-    position: 'absolute',
-    left: '10%',
+  counter: { textAlign: 'center', fontSize: 18, color: '#444', marginVertical: 8 },
+  wrapper: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  info: { fontSize: 20, color: '#222', textAlign: 'center', marginBottom: 20 },
+  startButton: { backgroundColor: '#E76617', padding: 16, borderRadius: 12 },
+  startText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+  sequenceWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
-  emoji: { fontSize: 36 },
-  obstacle: {
-    position: 'absolute',
-    width: 50,
-    height: 50,
-    backgroundColor: '#FF6666',
-    borderRadius: 25,
+  choiceWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 16,
   },
-  startButton: {
-    backgroundColor: '#E76617',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    alignSelf: 'center',
-    marginTop: 20,
-  },
-  startText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  result: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-    marginVertical: 20,
-  },
-  backButton: {
-    alignSelf: 'center',
-    backgroundColor: '#333333',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
+  img: { width: 70, height: 70, margin: 10, borderRadius: 12 },
+  backButton: { backgroundColor: '#3F51B5', padding: 12, borderRadius: 8, marginTop: 20 },
+  backText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 });

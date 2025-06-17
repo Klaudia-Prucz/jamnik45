@@ -38,6 +38,29 @@ export default function Zlap() {
   }, []);
 
   useEffect(() => {
+    if (!userId) return;
+
+    const sprawdzCzyUkonczona = async () => {
+      const { data, error } = await supabase
+        .from('zadania')
+        .select('zrecznosciowe')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('❌ Błąd sprawdzania gry:', error.message);
+        return;
+      }
+
+      if (data?.zrecznosciowe?.includes('zlap')) {
+        setFinished(true);
+      }
+    };
+
+    sprawdzCzyUkonczona();
+  }, [userId]);
+
+  useEffect(() => {
     if (finished) return;
 
     const timer = setTimeout(() => {
@@ -54,7 +77,7 @@ export default function Zlap() {
   }, [show, finished]);
 
   const setRandomPosition = () => {
-    const minTop = 200; // nie zasłaniaj tekstu
+    const minTop = 200;
     const top = minTop + Math.random() * (height - 300);
     const left = Math.random() * (width - 100);
     setPosition({ top, left });
@@ -117,9 +140,9 @@ export default function Zlap() {
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
-          <Text style={styles.tytul}>👶 Tapnij młodszego Alka!</Text>
+          <Text style={styles.tytul}>Tapnij bardziej aktualnego Alka!</Text>
           <Text style={styles.tekst}>
-            Klikaj tylko tego, który Twoim zdaniem jest młodszy od tego drugiego.
+  
           </Text>
           <Text style={styles.wynik}>Złapano poprawnie: {count} / {total}</Text>
 
@@ -139,12 +162,21 @@ export default function Zlap() {
             </TouchableOpacity>
           )}
 
-          {finished && <Text style={styles.sukces}>✅ Gra zaliczona!</Text>}
+          {finished && <Text style={styles.sukces}>Gra zaliczona!</Text>}
 
           <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania/zrecznosciowe')}>
             <Text style={styles.powrotText}>← Wybierz inną grę</Text>
           </TouchableOpacity>
         </View>
+
+        {finished && (
+          <View style={styles.nakladka}>
+            <Text style={styles.tekstNakladka}>Gra została już ukończona</Text>
+            <TouchableOpacity style={styles.przyciskNakladka} onPress={() => router.replace('/zadania//zrecznosciowe')}>
+              <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -206,6 +238,32 @@ const styles = StyleSheet.create({
   },
   powrotText: {
     color: '#3F51B5',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  nakladka: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  tekstNakladka: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3F51B5',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  przyciskNakladka: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#3F51B5',
+    borderRadius: 8,
+  },
+  przyciskNakladkaText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

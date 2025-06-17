@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  Image,
   ImageBackground,
   Platform,
   SafeAreaView,
@@ -9,49 +10,94 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Dimensions,
 } from 'react-native';
 import { supabase } from '@/supabaseClient';
 
-export default function KliknijGra({ onSuccess }) {
+const screenWidth = Dimensions.get('window').width;
+
+const images = {
+  ice: require('@/assets/ice.jpg'),
+  reveal: require('@/assets/hidden.png'),
+};
+
+export default function KliknijGra() {
   const router = useRouter();
   const [clicks, setClicks] = useState(0);
   const [timeLeft, setTimeLeft] = useState(10);
   const [status, setStatus] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [finished, setFinished] = useState(false);
 
-  // Pobierz user_id
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (user) setUserId(user.id);
+      if (error) console.warn('Błąd pobierania użytkownika:', error.message);
     };
     fetchUser();
   }, []);
 
-  // Zapisz jako ukończone
-  const oznaczGreJakoUkonczona = async (zadanieId) => {
+  useEffect(() => {
+    if (!userId) return;
+
+    const sprawdzCzyUkonczona = async () => {
+      const { data, error } = await supabase
+        .from('zadania')
+        .select('zrecznosciowe')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('❌ Błąd sprawdzania gry:', error.message);
+        return;
+      }
+
+      if (data?.zrecznosciowe?.includes('kliknij')) {
+        setFinished(true);
+      }
+    };
+
+    sprawdzCzyUkonczona();
+  }, [userId]);
+
+  const oznaczGreJakoUkonczona = async () => {
     if (!userId) return;
 
     const { data, error } = await supabase
       .from('zadania')
-      .select('id')
+      .select('zrecznosciowe')
       .eq('user_id', userId)
-      .eq('zadanie_id', zadanieId)
-      .eq('kategoria', 'zrecznosciowe');
+      .maybeSingle();
 
-    if (!data || data.length === 0) {
-      await supabase.from('zadania').insert([
-        {
-          user_id: userId,
-          zadanie_id: zadanieId,
-          kategoria: 'zrecznosciowe',
-        },
-      ]);
+    if (error) {
+      console.warn('❌ Błąd odczytu zadania:', error.message);
+      return;
+    }
+
+    if (!data) {
+      console.warn('❗ Nie znaleziono rekordu dla użytkownika');
+      return;
+    }
+
+    const aktualne = data.zrecznosciowe || [];
+
+    if (!aktualne.includes('kliknij')) {
+      const zaktualizowane = [...aktualne, 'kliknij'];
+      const { error: updateError } = await supabase
+        .from('zadania')
+        .update({ zrecznosciowe: zaktualizowane })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.warn('❌ Błąd aktualizacji zrecznosciowe:', updateError.message);
+      } else {
+        console.log('✅ Gra "kliknij" zapisana jako ukończona!');
+      }
     }
   };
 
-  // Licznik czasu
   useEffect(() => {
     let timer;
     if (isPlaying && timeLeft > 0) {
@@ -60,8 +106,8 @@ export default function KliknijGra({ onSuccess }) {
       setIsPlaying(false);
       if (clicks >= 45) {
         setStatus('win');
-        oznaczGreJakoUkonczona('kliknij');
-        onSuccess?.();
+        oznaczGreJakoUkonczona();
+        setFinished(true);
       } else {
         setStatus('fail');
       }
@@ -81,34 +127,50 @@ export default function KliknijGra({ onSuccess }) {
       <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
           <View style={styles.centered}>
-            <Text style={styles.tytul}>⚡ Klikaj jak najszybciej!</Text>
+            <Text style={styles.tytul}>Klikaj w bruk, żeby odkryć niespodziankę!</Text>
             <Text style={styles.podtytul}>Czas: {timeLeft}s | Kliknięcia: {clicks}</Text>
 
-            {isPlaying ? (
-              <TouchableOpacity
-                style={styles.clickButton}
-                onPress={() => setClicks((prev) => prev + 1)}
-              >
-                <Text style={styles.clickText}>KLIK!</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.startButton} onPress={startGame}>
-                <Text style={styles.startText}>Rozpocznij</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.clickArea}>
+              <Image source={images.reveal} style={styles.revealImage} />
+              {clicks < 45 && (
+                <Image
+                  source={images.ice}
+                  style={[
+                    styles.iceImage,
+                    { opacity: 1 - clicks / 45 }
+                  ]}
+                />
+              )}
+              {isPlaying && (
+                <TouchableOpacity
+                  style={styles.invisibleClickZone}
+                  onPress={() => setClicks((prev) => prev + 1)}
+                />
+              )}
+            </View>
 
             {status === 'win' && (
-              <Text style={[styles.infoText, styles.zaliczone]}>🎉 Brawo! Gra zaliczona!</Text>
+              <Text style={[styles.infoText, styles.zaliczone]}>Gra zaliczona!</Text>
             )}
             {status === 'fail' && (
-              <Text style={[styles.infoText, styles.niezaliczone]}>🙁 Za mało kliknięć!</Text>
+              <Text style={[styles.infoText, styles.niezaliczone]}>Za mało kliknięć!</Text>
             )}
           </View>
 
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>⬅ Wróć do wyboru gry</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/zadania/zrecznosciowe')}>
+            <Text style={styles.backButtonText}>← Wybierz inną grę</Text>
           </TouchableOpacity>
         </View>
+
+        {finished && (
+          <View style={styles.nakladka}>
+            <Image source={images.reveal} style={styles.nakladkaReveal} />
+            <Text style={styles.tekstNakladka}>Gra została już ukończona</Text>
+            <TouchableOpacity style={styles.przyciskNakladka} onPress={() => router.replace('/zadania')}>
+              <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -122,7 +184,7 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     flex: 1,
-    padding: 16,
+    padding: 20,
     justifyContent: 'space-between',
   },
   centered: {
@@ -131,40 +193,46 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tytul: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
+    color: '#3F51B5',
     marginBottom: 12,
-    color: '#FFE0B2',
     textAlign: 'center',
   },
   podtytul: {
     fontSize: 18,
-    color: '#FFD580',
+    color: '#333',
     marginBottom: 24,
     textAlign: 'center',
   },
-  clickButton: {
-    backgroundColor: '#E76617',
-    paddingVertical: 30,
-    paddingHorizontal: 50,
-    borderRadius: 100,
+  clickArea: {
+    width: 250,
+    height: 250,
+    position: 'relative',
     marginBottom: 20,
   },
-  clickText: {
-    fontSize: 32,
-    color: '#fff',
-    fontWeight: 'bold',
+  revealImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    borderRadius: 20,
   },
-  startButton: {
-    backgroundColor: '#FFD580',
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 12,
+  iceImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    borderRadius: 20,
   },
-  startText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+  invisibleClickZone: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
   },
   infoText: {
     fontSize: 18,
@@ -172,23 +240,53 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   zaliczone: {
-    color: '#66ffcc',
+    color: '#4CAF50',
+    fontWeight: 'bold',
   },
   niezaliczone: {
-    color: '#ff6666',
+    color: '#f44336',
+    fontWeight: 'bold',
   },
   backButton: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
     marginBottom: 16,
   },
   backButtonText: {
-    color: '#FFD580',
+    color: '#3F51B5',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     textAlign: 'center',
+  },
+  nakladka: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    paddingHorizontal: 20,
+  },
+  nakladkaReveal: {
+    width: 400,
+    height: (400 * 42) / 59,
+    resizeMode: 'contain',
+    marginBottom: 20,
+  },
+  tekstNakladka: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3F51B5',
+    textAlign: 'center',
+  },
+  przyciskNakladka: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#3F51B5',
+    borderRadius: 8,
+  },
+  przyciskNakladkaText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
