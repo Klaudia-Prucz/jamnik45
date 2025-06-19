@@ -12,57 +12,76 @@ import {
   View,
 } from 'react-native';
 
-const EMOJI_POOL = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦉', '🦇', '🐍', '🦖', '🐢', '🐙', '🦑', '🦞', '🦀', '🐡', '🐠', '🐳', '🦈', '🐊', '🦓', '🦍', '🦧', '🦒', '🐫', '🐘', '🦣'];
-const CELE = ['🐱', '🐶', '🐯', '🦁', '🐻'];
+const EMOJI_POOL = [
+  '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮',
+  '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦉', '🦇', '🐍', '🦖', '🐢',
+  '🐙', '🦑', '🦞', '🦀', '🐡', '🐠', '🐳', '🦈', '🐊', '🦓', '🦍', '🦧',
+  '🦒', '🐫', '🐘', '🦣', '🦮', '🐕‍🦺', '🐩', '🐕', '🦴', '🛏️'
+];
+
+const CELE = ['🐶', '🦮', '🐕‍🦺', '🐩', '🐕', '🦴', '🛏️'];
 
 export default function ZnajdzEmoji({ onSuccess }) {
   const router = useRouter();
   const [klikniete, setKlikniete] = useState([]);
   const [emojiGrid, setEmojiGrid] = useState([]);
-  const [userId, setUserId] = useState(null);
+  const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
     const shuffled = [...EMOJI_POOL].sort(() => 0.5 - Math.random());
-    setEmojiGrid(shuffled.slice(0, 40));
+    const withoutCele = shuffled.filter((e) => !CELE.includes(e));
+    const final = [...CELE, ...withoutCele].sort(() => 0.5 - Math.random());
+    setEmojiGrid(final.slice(0, 48));
   }, []);
 
-  useEffect(() => {
-    if (klikniete.length === CELE.length) {
-      oznaczGreJakoUkonczona();
-      onSuccess?.();
-    }
-  }, [klikniete]);
+  const zapiszJakoUkonczone = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
 
-  const oznaczGreJakoUkonczona = async () => {
-    if (!userId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-    }
-
-    const { data } = await supabase
+    const { data: istnieje } = await supabase
       .from('zadania')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('zadanie_id', 'znajdz')
-      .eq('kategoria', 'zrecznosciowe');
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('zadanie_id', 'sound')
+      .eq('kategoria', 'zrecznosciowe')
+      .maybeSingle();
 
-    if (!data || data.length === 0) {
-      await supabase.from('zadania').insert([
-        {
-          user_id: userId,
-          zadanie_id: 'znajdz',
-          kategoria: 'zrecznosciowe',
-        },
-      ]);
-    }
+    if (istnieje) return true;
+
+    const { error } = await supabase.from('zadania').insert([
+      {
+        user_id: user.id,
+        zadanie_id: 'sound',
+        kategoria: 'zrecznosciowe',
+      },
+    ]);
+
+    return !error;
   };
 
   const handlePress = (emoji) => {
-    if (CELE.includes(emoji) && !klikniete.includes(emoji)) {
-      setKlikniete([...klikniete, emoji]);
-    }
+    setKlikniete((prev) => {
+      const zbior = new Set([...prev, emoji]);
+      return Array.from(zbior);
+    });
   };
+
+  useEffect(() => {
+    if (completed) return;
+
+    const poprawneKlikniecia = klikniete.filter((em) => CELE.includes(em));
+
+    if (poprawneKlikniecia.length === CELE.length) {
+      const zapisz = async () => {
+        const zapisane = await zapiszJakoUkonczone();
+        if (zapisane) {
+          setCompleted(true);
+          onSuccess?.();
+        }
+      };
+      zapisz();
+    }
+  }, [klikniete]);
 
   const goBack = () => {
     router.replace('/zadania/zrecznosciowe');
@@ -70,23 +89,34 @@ export default function ZnajdzEmoji({ onSuccess }) {
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
-      <SafeAreaView style={styles.safe}>      
+      <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
-          <Text style={styles.tytul}>🔍 Znajdź ukryte zwierzaki!</Text>
+          <Text style={styles.tytul}>🔍 Znajdź wszystkie pieski i rzeczy z nimi związane!</Text>
+          <Text style={styles.counter}>
+            Znaleziono: {
+              klikniete.filter((em) => CELE.includes(em)).length
+            } / {CELE.length}
+          </Text>
+
           <View style={styles.grid}>
             {emojiGrid.map((em, i) => (
-              <TouchableOpacity key={i} style={styles.cell} onPress={() => handlePress(em)}>
+              <TouchableOpacity
+                key={i}
+                style={[styles.cell, klikniete.includes(em) && styles.clicked]}
+                onPress={() => handlePress(em)}
+              >
                 <Text style={styles.emoji}>{em}</Text>
               </TouchableOpacity>
             ))}
           </View>
-          {klikniete.length === CELE.length && (
-            <>
-              <Text style={styles.result}>✅ Udało się! Znalazłeś wszystkie!</Text>
-              <TouchableOpacity style={styles.backButton} onPress={goBack}>
-                <Text style={styles.backButtonText}>⬅ Wróć do zestawu gier</Text>
+
+          {completed && (
+            <View style={styles.nakladka}>
+              <Text style={styles.tekstNakladka}>✅ Udało się! Znalazłeś wszystkie!</Text>
+              <TouchableOpacity style={styles.przyciskNakladka} onPress={goBack}>
+                <Text style={styles.przyciskNakladkaText}>⬅ Wróć do zestawu gier</Text>
               </TouchableOpacity>
-            </>
+            </View>
           )}
         </View>
       </SafeAreaView>
@@ -96,12 +126,26 @@ export default function ZnajdzEmoji({ onSuccess }) {
 
 const styles = StyleSheet.create({
   tlo: { flex: 1 },
-  safe: { flex: 1, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
-  wrapper: { flex: 1, padding: 16 },
+  safe: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  wrapper: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
   tytul: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#3F51B5',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  counter: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#3F51B5',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -120,24 +164,33 @@ const styles = StyleSheet.create({
     margin: 4,
     borderRadius: 8,
   },
+  clicked: {
+    backgroundColor: '#E76617aa',
+  },
   emoji: {
     fontSize: 24,
   },
-  result: {
-    fontSize: 20,
-    color: '#66ffcc',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
+  nakladka: {
+    marginTop: 24,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    padding: 20,
+    borderRadius: 12,
   },
-  backButton: {
-    alignSelf: 'center',
+  tekstNakladka: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#3F51B5',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  przyciskNakladka: {
     backgroundColor: '#3F51B5',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
   },
-  backButtonText: {
+  przyciskNakladkaText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',

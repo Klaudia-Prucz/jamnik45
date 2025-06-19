@@ -1,18 +1,26 @@
-import { View, Text, StyleSheet, Image, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, Image, SafeAreaView, TouchableOpacity } from 'react-native';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
+import { useRouter } from 'expo-router';
 
 export default function EkranPrezentu() {
   const [gotowe, setGotowe] = useState(false);
   const [zaladowano, setZaladowano] = useState(false);
+  const [userId, setUserId] = useState(null);
+  const router = useRouter();
   const kodSejfu = '7452';
 
   useEffect(() => {
     const sprawdzCzyWszystkoUkonczone = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      setUserId(user.id);
+
       const { data, error } = await supabase
         .from('zadania')
         .select('*')
-        .eq('nazwa', 'uczestnik1')
+        .eq('user_id', user.id)
         .single();
 
       if (error) {
@@ -26,12 +34,16 @@ export default function EkranPrezentu() {
       const zrecznosciowe = data.zrecznosciowe?.length || 0;
 
       const suma = quizy + rebusy + specjalne + zrecznosciowe;
-      setGotowe(suma >= 44);
+      setGotowe(suma >= 20);
       setZaladowano(true);
     };
 
     sprawdzCzyWszystkoUkonczone();
   }, []);
+
+  const przejdzDalej = () => {
+    router.push('../dziekujemy');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -44,10 +56,14 @@ export default function EkranPrezentu() {
 
           <View style={styles.kodContainer}>
             <Text style={styles.kod}>{kodSejfu}</Text>
-            <Text style={styles.podpowiedz}>Użyj tego kodu, by otworzyć sejf 🎁</Text>
+            <Text style={styles.podpowiedz}>Użyj tego kodu, by otworzyć sejf</Text>
           </View>
 
-          <Text style={styles.koncoweZyczenia}>Jeszcze raz wszystkiego najlepszego! 🥳</Text>
+          <TouchableOpacity style={styles.przycisk} onPress={przejdzDalej}>
+            <Text style={styles.przyciskText}>➡ Co dalej?</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.koncoweZyczenia}>Jeszcze raz wszystkiego najlepszego! Mam nadzieję, że choć raz się uśmiechnąłeś dzięki tej aplikacji!</Text>
 
           <Image source={require('../../assets/end1.png')} style={styles.obrazek} />
         </>
@@ -100,6 +116,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     color: '#666',
+  },
+  przycisk: {
+    backgroundColor: '#3F51B5',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    marginBottom: 24,
+  },
+  przyciskText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   koncoweZyczenia: {
     fontSize: 18,

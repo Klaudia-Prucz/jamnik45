@@ -13,61 +13,69 @@ import { useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
 
 const pytania = [
-  { pytanie: 'Ile nóg ma pająk?', odpowiedzi: ['6', '8', '10'], poprawna: '8' },
-  { pytanie: 'Stolica Francji to?', odpowiedzi: ['Berlin', 'Paryż', 'Rzym'], poprawna: 'Paryż' },
-  { pytanie: 'Kolor nieba to?', odpowiedzi: ['Zielony', 'Niebieski', 'Czerwony'], poprawna: 'Niebieski' },
+  { pytanie: 'W jakim kraju znajduje się Machu Picchu?', odpowiedzi: ['Peru', 'Meksyk', 'Chile'], poprawna: 'Peru' },
+  { pytanie: 'Która wyspa należy do Włoch?', odpowiedzi: ['Ibiza', 'Sardynia', 'Kreta'], poprawna: 'Sardynia' },
+  { pytanie: 'W jakim kraju jest miasto Petra?', odpowiedzi: ['Egipt', 'Jordania', 'Turcja'], poprawna: 'Jordania' },
+  { pytanie: 'Stolica Japonii to?', odpowiedzi: ['Kioto', 'Osaka', 'Tokio'], poprawna: 'Tokio' },
+  { pytanie: 'Które państwo słynie z fiordów?', odpowiedzi: ['Szwecja', 'Norwegia', 'Finlandia'], poprawna: 'Norwegia' },
+  { pytanie: 'W jakim kraju jest safari Serengeti?', odpowiedzi: ['Kenia', 'Tanzania', 'RPA'], poprawna: 'Tanzania' },
+  { pytanie: 'W jakim kraju znajduje się Angkor Wat?', odpowiedzi: ['Tajlandia', 'Kambodża', 'Wietnam'], poprawna: 'Kambodża' },
+  { pytanie: 'W jakim kraju są wyspy Galapagos?', odpowiedzi: ['Ekwador', 'Brazylia', 'Kuba'], poprawna: 'Ekwador' },
+  { pytanie: 'Stolica Australii to?', odpowiedzi: ['Sydney', 'Canberra', 'Melbourne'], poprawna: 'Canberra' },
+  { pytanie: 'W jakim kraju leży miasto Dubaj?', odpowiedzi: ['Arabia Saudyjska', 'Katar', 'ZEA'], poprawna: 'ZEA' },
 ];
 
 export default function SzybkiQuiz({ onSuccess }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [startTime, setStartTime] = useState(null);
   const [status, setStatus] = useState('ready');
   const [userId, setUserId] = useState(null);
+  const [timer, setTimer] = useState(null);
 
-  const getUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) setUserId(user.id);
-  };
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     if (status === 'playing') {
-      setStartTime(Date.now());
+      const timeout = setTimeout(() => handleAnswer(null), 3000);
+      setTimer(timeout);
     }
-  }, [status]);
+    return () => clearTimeout(timer);
+  }, [index, status]);
 
   const oznaczGreJakoUkonczona = async () => {
-    if (!userId) await getUser();
-
-    const { data } = await supabase
+    if (!userId) return;
+    const { data, error } = await supabase
       .from('zadania')
-      .select('id')
+      .select('zrecznosciowe')
       .eq('user_id', userId)
-      .eq('zadanie_id', 'szybkiquiz')
-      .eq('kategoria', 'zrecznosciowe');
+      .maybeSingle();
 
-    if (!data || data.length === 0) {
-      await supabase.from('zadania').insert([
-        {
-          user_id: userId,
-          zadanie_id: 'szybkiquiz',
-          kategoria: 'zrecznosciowe',
-        },
-      ]);
+    if (!error && data) {
+      const aktualne = data.zrecznosciowe || [];
+      if (!aktualne.includes('shake')) {
+        const nowe = [...aktualne, 'shake'];
+        await supabase
+          .from('zadania')
+          .update({ zrecznosciowe: nowe })
+          .eq('user_id', userId);
+      }
     }
   };
 
   const handleAnswer = (odp) => {
-    if (odp === pytania[index].poprawna) {
-      setScore(score + 1);
-    }
-
+    clearTimeout(timer);
+    if (odp === pytania[index].poprawna) setScore((s) => s + 1);
     if (index + 1 < pytania.length) {
       setIndex(index + 1);
     } else {
-      const czas = (Date.now() - startTime) / 1000;
-      if (score + 1 === pytania.length && czas <= 15) {
+      if (score + (odp === pytania[index].poprawna ? 1 : 0) >= 8) {
         setStatus('win');
         oznaczGreJakoUkonczona();
         onSuccess?.();
@@ -101,11 +109,7 @@ export default function SzybkiQuiz({ onSuccess }) {
             <View>
               <Text style={styles.pytanie}>{pytania[index].pytanie}</Text>
               {pytania[index].odpowiedzi.map((o, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={styles.odpowiedzBtn}
-                  onPress={() => handleAnswer(o)}
-                >
+                <TouchableOpacity key={i} style={styles.odpowiedzBtn} onPress={() => handleAnswer(o)}>
                   <Text style={styles.odpowiedzText}>{o}</Text>
                 </TouchableOpacity>
               ))}
@@ -114,7 +118,7 @@ export default function SzybkiQuiz({ onSuccess }) {
 
           {status === 'win' && (
             <>
-              <Text style={styles.result}>✅ Udało się! Odpowiedzi w dobrym czasie!</Text>
+              <Text style={styles.result}>✅ Udało się! Zaliczyłeś quiz!</Text>
               <TouchableOpacity style={styles.backButton} onPress={goBack}>
                 <Text style={styles.backButtonText}>⬅ Wróć do zestawu gier</Text>
               </TouchableOpacity>
@@ -123,7 +127,10 @@ export default function SzybkiQuiz({ onSuccess }) {
 
           {status === 'fail' && (
             <>
-              <Text style={styles.result}>❌ Za wolno lub błędne odpowiedzi</Text>
+              <Text style={styles.result}>❌ Za mało poprawnych odpowiedzi</Text>
+              <TouchableOpacity style={styles.backButton} onPress={startGame}>
+                <Text style={styles.backButtonText}>🔁 Spróbuj ponownie</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.backButton} onPress={goBack}>
                 <Text style={styles.backButtonText}>⬅ Wróć do zestawu gier</Text>
               </TouchableOpacity>
@@ -139,7 +146,7 @@ const styles = StyleSheet.create({
   tlo: { flex: 1 },
   safe: { flex: 1, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
   wrapper: { flex: 1, padding: 16, justifyContent: 'center' },
-  pytanie: { color: '#fff', fontSize: 22, textAlign: 'center', marginBottom: 16 },
+  pytanie: { color: '#3F51B5', fontSize: 22, textAlign: 'center', marginBottom: 16, fontWeight: 'bold' },
   odpowiedzBtn: {
     backgroundColor: '#E76617',
     paddingVertical: 12,
@@ -164,17 +171,17 @@ const styles = StyleSheet.create({
   result: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#3F51B5',
     textAlign: 'center',
     marginVertical: 20,
   },
   backButton: {
     alignSelf: 'center',
-    backgroundColor: '#333333',
+    backgroundColor: '#3F51B5',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   backButtonText: {
     color: '#ffffff',

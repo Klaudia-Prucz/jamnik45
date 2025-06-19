@@ -29,10 +29,10 @@ export default function Zadania() {
         <Text style={styles.tytul}> Wybierz kategorię zadań</Text>
 
         <View style={styles.kategorieSiatka}>
-          {renderKafelek('🧠 Quizy', () => router.push('/zadania/quizy'))}
-          {renderKafelek('📸 Zadania specjalne', () => router.push('/zadania/specjalne'), '#3F51B5')}
-          {renderKafelek('🔍 Rebusy', () => router.push('/zadania/rebusy'), '#4CAF50')}
-          {renderKafelek('🎮 Zręcznościowe', () => router.push('/zadania/zrecznosciowe'), '#FF9800')}
+          {renderKafelek('Quizy', () => router.push('/zadania/quizy'))}
+          {renderKafelek('Zadania specjalne', () => router.push('/zadania/specjalne'), '#3F51B5')}
+          {renderKafelek('Rebusy', () => router.push('/zadania/rebusy'), '#4CAF50')}
+          {renderKafelek('Gierki', () => router.push('/zadania/zrecznosciowe'), '#FF9800')}
         </View>
 
         <TouchableOpacity

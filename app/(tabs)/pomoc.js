@@ -8,24 +8,37 @@ export default function Pomoc() {
           <Text style={styles.tytul}>❓ Pomoc</Text>
 
           <View style={styles.blok}>
-            <Text style={styles.pytanie}>💡 Jak działa aplikacja?</Text>
+            <Text style={styles.pytanie}>🎂 O co chodzi w tej aplikacji?</Text>
             <Text style={styles.odpowiedz}>
-              Masz do wykonania 45 zadań. Każde zadanie odblokowuje kolejne. Na końcu czeka Cię finałowy
-              kod do sejfu z prezentem! 🎁
+              To urodzinowa gra z 45 zadaniami! 🐶 Aplikacja poprowadzi Cię przez quizy, rebusy, gry i zadania specjalne. Na końcu czeka Cię finałowy kod do sejfu z prezentem! Dostępne tylko jeżeli ukończysz wszystkie zabawy 🎁
             </Text>
           </View>
 
           <View style={styles.blok}>
-            <Text style={styles.pytanie}>📸 Czy muszę robić zdjęcia?</Text>
+            <Text style={styles.pytanie}>📸 Jak działają zadania specjalne?</Text>
             <Text style={styles.odpowiedz}>
-              Niektóre zadania zawierają zdjęcia – wystarczy zrobić je z aparatu lub galerii.
+              Wymagają zrobienia zdjęcia (np. z galerii lub aparatu). Zdjęcie zostaje zapisane w bazie i ja muszę je ręcznie zaakceptować. Jeśli wszystko się zgadza – zaliczam zadanie. Jeśli nie – wraca do poprawy.
             </Text>
           </View>
 
           <View style={styles.blok}>
-            <Text style={styles.pytanie}>📞 Mam problem – co teraz?</Text>
+            <Text style={styles.pytanie}>🌀 Aplikacja się nie ładuje?</Text>
             <Text style={styles.odpowiedz}>
-              Skontaktuj się z organizatorką urodzin lub spróbuj ponownie później 😉
+              Daj mi znać – może coś poszło nie tak. Spróbuję to naprawić jak najszybciej.
+            </Text>
+          </View>
+
+          <View style={styles.blok}>
+            <Text style={styles.pytanie}>🧠 Nie wiesz, jak rozwiązać zadanie?</Text>
+            <Text style={styles.odpowiedz}>
+              Odezwij się do mnie – mogę podrzucić Ci małą podpowiedź, ale bez spoilerów 😉
+            </Text>
+          </View>
+
+          <View style={styles.blok}>
+            <Text style={styles.pytanie}>📩 Inne problemy?</Text>
+            <Text style={styles.odpowiedz}>
+              Niezależnie od sytuacji – pisz śmiało! 😉
             </Text>
           </View>
         </ScrollView>
@@ -65,5 +78,6 @@ const styles = StyleSheet.create({
   odpowiedz: {
     fontSize: 16,
     color: '#333',
+    lineHeight: 22,
   },
 });

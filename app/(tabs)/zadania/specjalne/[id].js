@@ -11,6 +11,19 @@ import {
 } from 'react-native';
 import { supabase } from '@/supabaseClient';
 
+const opisyZadan = {
+  '1': 'Zrób zdjęcie Luny na spacerze w spokojnym, wyjątkowym miejscu (park, las, nad wodą).',
+  '2': 'Zrób zdjęcie ulubionemu pracownikowi w Dr IT :D',
+  '3': 'Stwórz kreatywny portret Luny, może być zabawny lub emocjonalny.',
+  '4': 'wrzuć swoje ulubione zdjęcie z wakacji',
+  '5': 'Znajdź chwilę dla siebie i pokaż jak się relaksujesz.',
+  '6': 'Uchwyć moment z Alicją',
+  '7': 'Zrób zdjęcie swojemu ulubionemu meblowi w domu :) .',
+  '8': 'Zrób coś dla siebie i przebiegnij jeszcze przed urlopem swoje 3 km!',
+  '9': 'Wypij pysznego drineczka (dla zdrowotności) i pokaż jakiego!',
+  '10': 'Ach, niech będzie - zrób fotkę lubianego miejsca w Krakowie :)',
+};
+
 export default function ZadanieSpecjalne() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -26,7 +39,6 @@ export default function ZadanieSpecjalne() {
     setStatus(null);
   }, [id]);
 
-
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -35,7 +47,6 @@ export default function ZadanieSpecjalne() {
     fetchUser();
   }, []);
 
-  // 📥 Pobierz dane z pola `specjalne` (jsonb)
   useEffect(() => {
     const pobierz = async () => {
       if (!userId) return;
@@ -63,7 +74,6 @@ export default function ZadanieSpecjalne() {
       const uri = result.assets[0].uri;
       setLocalUri(uri);
 
-      // pobierz obecny obiekt specjalne
       const { data: rekord, error } = await supabase
         .from('zadania')
         .select('specjalne')
@@ -96,6 +106,8 @@ export default function ZadanieSpecjalne() {
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.wrapper}>
         <Text style={styles.tytul}>📸 Zadanie specjalne {id}</Text>
+
+        <Text style={styles.opisZadania}>{opisyZadan[id] || 'Opis zadania niedostępny.'}</Text>
 
         {pokazaneZdjecie ? (
           <>
@@ -152,13 +164,21 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#3F51B5',
-    marginBottom: 20,
+    marginBottom: 10,
     textAlign: 'center',
+  },
+  opisZadania: {
+    fontSize: 16,
+    color: '#444',
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
   },
   info: {
     fontSize: 16,
     color: '#666',
     marginBottom: 20,
+    textAlign: 'center',
   },
   zdjecie: {
     width: 300,
@@ -190,11 +210,13 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 30,
+    minWidth: 200,
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+    textAlign: 'center',
   },
   powrot: {
     marginTop: 10,

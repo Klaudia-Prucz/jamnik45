@@ -22,7 +22,6 @@ export default function Statystyki() {
     procent: 0,
   });
 
-  // 🔑 Pobierz ID użytkownika
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -35,7 +34,6 @@ export default function Statystyki() {
     fetchUser();
   }, []);
 
-  // 📊 Pobierz dane statystyczne użytkownika
   useEffect(() => {
     if (!userId) return;
 
@@ -61,7 +59,14 @@ export default function Statystyki() {
       const z = zrecznosciowe.length;
       const s = Object.keys(specjalne).length;
 
-      const razem = q + r + z + s;
+      const wykonane = new Set([
+        ...quizy,
+        ...rebusy,
+        ...zrecznosciowe,
+        ...Object.keys(specjalne),
+      ]);
+
+      const razem = wykonane.size;
       const procent = Math.round((razem / 45) * 100);
 
       setDaneZadan({ quizy: q, rebusy: r, zrecznosciowe: z, specjalne: s, razem, procent });
@@ -81,7 +86,7 @@ export default function Statystyki() {
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
-      <SafeAreaView style={styles.safe}> 
+      <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.wrapper}>
           <Text style={styles.header}>Statystyki</Text>
           <View style={styles.card}>

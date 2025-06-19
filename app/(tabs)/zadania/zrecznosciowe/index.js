@@ -63,7 +63,7 @@ export default function ListaMiniGier() {
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.innerWrapper}>
-            <Text style={styles.tytul}>🎮 Wybierz mini-grę</Text>
+            <Text style={styles.tytul}>Wybierz gierkę</Text>
 
             <View style={styles.lista}>
               {paths.map((path, index) => {
@@ -75,7 +75,7 @@ export default function ListaMiniGier() {
                     onPress={() => router.push(`/zadania/zrecznosciowe/${path}`)}
                   >
                     <Text style={styles.kafelekText}>
-                      {isDone ? `✅ Gra ${index + 1}` : `🎯 Gra ${index + 1}`}
+                      {isDone ? `Gra ${index + 1}` : ` Gra ${index + 1}`}
                     </Text>
                   </TouchableOpacity>
                 );

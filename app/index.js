@@ -21,13 +21,24 @@ export default function EkranLogowania() {
   const [haslo, setHaslo] = useState('');
 
   const zaloguj = async () => {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data: { user }, error } = await supabase.auth.signInWithPassword({
       email,
       password: haslo,
     });
 
-    if (error) {
+    if (error || !user) {
       Alert.alert('Błąd logowania 🐾', 'Niepoprawny email lub hasło.');
+      return;
+    }
+
+    const { data, error: fetchError } = await supabase
+      .from('zadania')
+      .select('zakonczono')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!fetchError && data?.zakonczono === true) {
+      router.replace('/wroc-za-rok');
     } else {
       router.replace('/(tabs)/strona-glowna');
     }
@@ -40,7 +51,7 @@ export default function EkranLogowania() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.wrapper}
         >
-          <View style={styles.overlay}>
+          <View style={styles.centerBox}>
             <Text style={styles.tytul}>Cześć! 🎉</Text>
             <Text style={styles.podtytul}>Zaloguj się, aby rozpocząć urodzinową przygodę!</Text>
 
@@ -51,6 +62,7 @@ export default function EkranLogowania() {
               style={styles.input}
               textContentType="emailAddress"
               autoCapitalize="none"
+              placeholderTextColor="#888"
             />
 
             <TextInput
@@ -61,6 +73,7 @@ export default function EkranLogowania() {
               style={styles.input}
               textContentType="password"
               autoCapitalize="none"
+              placeholderTextColor="#888"
             />
 
             <TouchableOpacity style={styles.przycisk} onPress={zaloguj}>
@@ -80,32 +93,34 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     flex: 1,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: '90%',
   },
-  overlay: {
-    marginTop: '85%',
-    padding: 30,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+  centerBox: {
     alignItems: 'center',
   },
   tytul: {
     fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 10,
+    color: '#000',
   },
   podtytul: {
     fontSize: 18,
     marginBottom: 20,
     textAlign: 'center',
+    color: '#000',
   },
   input: {
     width: '100%',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderColor: '#ccc',
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
     marginVertical: 8,
+    color: '#000',
   },
   przycisk: {
     backgroundColor: '#E76617',

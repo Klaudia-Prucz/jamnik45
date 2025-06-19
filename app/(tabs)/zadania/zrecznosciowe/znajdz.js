@@ -12,20 +12,41 @@ import {
 import { useRouter } from 'expo-router';
 import { supabase } from '@/supabaseClient';
 
-const rundy = [
-  { emoji: ['🍎', '🍊', '🍌', '🐶'], niepasuje: '🐶' },
-  { emoji: ['🚌', '🚗', '🚕', '🍰'], niepasuje: '🍰' },
-  { emoji: ['🌧️', '☀️', '🌩️', '🎸'], niepasuje: '🎸' },
-  { emoji: ['✏️', '📐', '📏', '🐸'], niepasuje: '🐸' },
-  { emoji: ['🦊', '🐱', '🐶', '🍕'], niepasuje: '🍕' },
+const rundyBazowe = [
+  { emoji: ['🍎', '🍊', '🍌'], niepasuje: '🐶' },
+  { emoji: ['🚌', '🚗', '🚕'], niepasuje: '🍰' },
+  { emoji: ['🌧️', '☀️', '🌩️'], niepasuje: '🎸' },
+  { emoji: ['✏️', '📐', '📏'], niepasuje: '🐸' },
+  { emoji: ['🦊', '🐱', '🐶'], niepasuje: '🍕' },
+  { emoji: ['🚀', '🛸', '✈️'], niepasuje: '🍦' },
+  { emoji: ['🐟', '🐠', '🐡'], niepasuje: '🚗' },
+  { emoji: ['⚽', '🏀', '🏈'], niepasuje: '🎨' },
+  { emoji: ['🍔', '🍟', '🌭'], niepasuje: '🎹' },
+  { emoji: ['🐘', '🦏', '🐪'], niepasuje: '🎮' },
+  { emoji: ['🍓', '🍉', '🍇'], niepasuje: '🐒' },
+  { emoji: ['🚴‍♂️', '🏊‍♀️', '🤸‍♂️'], niepasuje: '📚' },
+  { emoji: ['📱', '💻', '🖥️'], niepasuje: '🍩' },
+  { emoji: ['🌹', '🌻', '🌷'], niepasuje: '🐔' },
+  { emoji: ['🎬', '🎤', '🎧'], niepasuje: '🛏️' },
 ];
+
+const wymieszajEmoji = (emoji, niepasuje) => {
+  const combined = [...emoji, niepasuje];
+  for (let i = combined.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [combined[i], combined[j]] = [combined[j], combined[i]];
+  }
+  return combined;
+};
 
 export default function GraLogiczna({ onSuccess }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [błędy, setBłędy] = useState(0);
+  const [poprawne, setPoprawne] = useState(0);
   const [status, setStatus] = useState('ready');
   const [userId, setUserId] = useState(null);
+  const [rundy, setRundy] = useState([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -35,55 +56,105 @@ export default function GraLogiczna({ onSuccess }) {
     fetchUser();
   }, []);
 
+  useEffect(() => {
+    const shuffledRounds = [...rundyBazowe]
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 15);
+    setRundy(shuffledRounds);
+  }, []);
+
   const startGame = () => {
     setIndex(0);
     setBłędy(0);
+    setPoprawne(0);
     setStatus('playing');
   };
 
   const oznaczGreJakoUkonczona = async () => {
-    if (!userId) return;
-
-    const { data } = await supabase
-      .from('zadania')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('zadanie_id', 'logiczna')
-      .eq('kategoria', 'zrecznosciowe');
-
-    if (!data || data.length === 0) {
-      await supabase.from('zadania').insert([
-        {
-          user_id: userId,
-          zadanie_id: 'logiczna',
-          kategoria: 'zrecznosciowe',
-        },
-      ]);
+    let currentUserId = userId;
+    if (!currentUserId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+      currentUserId = user.id;
+      setUserId(currentUserId);
     }
+
+    const { data: rekord, error } = await supabase
+      .from('zadania')
+      .select('zrecznosciowe')
+      .eq('user_id', currentUserId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('❌ Błąd odczytu:', error.message);
+      return false;
+    }
+
+    const obecne = rekord?.zrecznosciowe || [];
+    if (obecne.includes('znajdz')) return true;
+
+    const nowe = [...obecne, 'znajdz'];
+
+    const { error: updateError } = await supabase
+      .from('zadania')
+      .update({ zrecznosciowe: nowe })
+      .eq('user_id', currentUserId);
+
+    if (updateError) {
+      console.error('❌ Błąd zapisu:', updateError.message);
+      return false;
+    }
+
+    return true;
   };
 
-  const handleClick = (em) => {
+  const handleClick = async (em) => {
+    if (status !== 'playing') return;
+
     const aktualna = rundy[index];
+    if (!aktualna) return;
+
     if (em === aktualna.niepasuje) {
-      if (index + 1 === rundy.length) {
+      const nowyIndex = index + 1;
+      const nowaLiczbaPoprawnych = poprawne + 1;
+      setPoprawne(nowaLiczbaPoprawnych);
+
+      if (nowyIndex >= rundy.length || nowaLiczbaPoprawnych >= 10) {
         setStatus('win');
-        oznaczGreJakoUkonczona();
+        await oznaczGreJakoUkonczona();
         onSuccess?.();
       } else {
-        setIndex(index + 1);
+        setIndex(nowyIndex);
       }
     } else {
-      if (błędy + 1 >= 3) {
+      const nowaLiczbaBledow = błędy + 1;
+      setBłędy(nowaLiczbaBledow);
+      if (nowaLiczbaBledow >= 3) {
         setStatus('fail');
-      } else {
-        setBłędy(błędy + 1);
       }
     }
   };
 
   const goBack = () => {
+    setStatus('ready');
+    setIndex(0);
+    setBłędy(0);
+    setPoprawne(0);
     router.replace('/zadania/zrecznosciowe');
   };
+
+  if (status === 'ready' && rundy.length === 0) {
+    return (
+      <View style={[styles.wrapper, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.tytul}>Ładowanie...</Text>
+      </View>
+    );
+  }
+
+  const aktualnaRunda = rundy[index];
+  const emojiDoWyswietlenia = aktualnaRunda
+    ? wymieszajEmoji(aktualnaRunda.emoji, aktualnaRunda.niepasuje)
+    : [];
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
@@ -99,9 +170,14 @@ export default function GraLogiczna({ onSuccess }) {
             <>
               <Text style={styles.tytul}>🧠 Które emoji nie pasuje?</Text>
               <Text style={styles.sub}>Błędy: {błędy} / 3</Text>
+              <Text style={styles.sub}>Poprawne: {poprawne} / 10</Text>
               <View style={styles.grid}>
-                {rundy[index].emoji.map((em, i) => (
-                  <TouchableOpacity key={i} style={styles.cell} onPress={() => handleClick(em)}>
+                {emojiDoWyswietlenia.map((em, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.cell}
+                    onPress={() => handleClick(em)}
+                  >
                     <Text style={styles.emoji}>{em}</Text>
                   </TouchableOpacity>
                 ))}
@@ -139,15 +215,15 @@ const styles = StyleSheet.create({
   tytul: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#3F51B5',
     textAlign: 'center',
     marginBottom: 12,
   },
   sub: {
     fontSize: 18,
-    color: '#ffffffcc',
+    color: '#3F51B5',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   grid: {
     flexDirection: 'row',
@@ -159,17 +235,19 @@ const styles = StyleSheet.create({
   cell: {
     width: 70,
     height: 70,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffffcc',
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     margin: 6,
   },
-  emoji: { fontSize: 30 },
+  emoji: {
+    fontSize: 30,
+  },
   result: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#3F51B5',
     textAlign: 'center',
     marginVertical: 20,
   },
@@ -181,7 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backButtonText: {
-    color: '#ffffff',
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
@@ -194,5 +272,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 20,
   },
-  startText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  startText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
 });

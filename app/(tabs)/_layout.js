@@ -49,21 +49,22 @@ export default function TabLayout() {
       <Tabs.Screen name="pomoc" options={{ title: 'Pomoc' }} />
       <Tabs.Screen name="statystyki" options={{ title: 'Statystyki' }} />
 
-      {/* Ukryte ekrany - dostępne tylko przez router.push */}
+      {/* Ukryte ekrany (brak tabów, brak bezpośredniego wejścia przez adres URL) */}
       <Tabs.Screen name="gift" options={{ href: null }} />
+      <Tabs.Screen name="dziekujemy" options={{ href: null }} />
+      <Tabs.Screen name="end" options={{ href: null }} />
 
-<Tabs.Screen name="zadania/zrecznosciowe/kliknij" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/memory" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/reakcja" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/rzut" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/shake" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/sound" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/traf" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/unik" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/zlap" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/znajdz" options={{ href: null }} />
-<Tabs.Screen name="zadania/zrecznosciowe/index" options={{ href: null }} />
-
+      <Tabs.Screen name="zadania/zrecznosciowe/index" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/kliknij" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/memory" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/reakcja" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/rzut" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/shake" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/sound" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/traf" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/unik" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/zlap" options={{ href: null }} />
+      <Tabs.Screen name="zadania/zrecznosciowe/znajdz" options={{ href: null }} />
 
       <Tabs.Screen name="zadania/quizy" options={{ href: null }} />
       <Tabs.Screen name="zadania/quizy/index" options={{ href: null }} />
@@ -75,6 +76,8 @@ export default function TabLayout() {
 
       <Tabs.Screen name="zadania/rebusy/index" options={{ href: null }} />
       <Tabs.Screen name="zadania/rebusy/[id]" options={{ href: null }} />
+      <Tabs.Screen name="wroc-za-rok" options={{ href: null }} />
+
     </Tabs>
   );
 }

@@ -8,14 +8,43 @@ import {
   StyleSheet,
   Keyboard,
   ImageBackground,
+  Image,
   SafeAreaView,
   Platform,
   StatusBar,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
+  Dimensions,
 } from 'react-native';
-import { rebusy } from './rebusy';
 import { supabase } from '@/supabaseClient';
+
+const { height } = Dimensions.get('window');
+
+const obrazki = {
+  '1': require('@/assets/rebusy/rebus1.png'),
+  '2': require('@/assets/rebusy/rebus2.png'),
+  '3': require('@/assets/rebusy/rebus3.png'),
+  '4': require('@/assets/rebusy/rebus4.png'),
+  '5': require('@/assets/rebusy/rebus5.png'),
+  '6': require('@/assets/rebusy/rebus6.png'),
+  '7': require('@/assets/rebusy/rebus7.png'),
+  '8': require('@/assets/rebusy/rebus8.png'),
+  '9': require('@/assets/rebusy/rebus9.png'),
+  '10': require('@/assets/rebusy/rebus10.png'),
+};
+
+const hasla = {
+  '1': 'alicja',
+  '2': 'foch',
+  '3': 'pierdoling',
+  '4': 'warszawa',
+  '5': 'dyrektor',
+  '6': 'jamnik',
+  '7': 'trójkąt',
+  '8': 'tajlandia',
+  '9': 'zosia',
+  '10': 'maruda',
+};
 
 export default function RebusZadanie() {
   const { id } = useLocalSearchParams();
@@ -26,8 +55,7 @@ export default function RebusZadanie() {
   const [userId, setUserId] = useState(null);
   const [zapisano, setZapisano] = useState(false);
 
-  const rebus = rebusy.find((r) => r.id === id);
-  const poprawna = rebus?.odpowiedz?.toLowerCase();
+  const poprawna = hasla[id]?.toLowerCase();
 
   useEffect(() => {
     setOdpowiedz('');
@@ -77,7 +105,6 @@ export default function RebusZadanie() {
           if (updateError) {
             console.error('❌ Błąd zapisu:', updateError.message);
           } else {
-            console.log('✅ Zapisano rebus:', zadanieId);
             setZapisano(true);
           }
         } else {
@@ -90,8 +117,9 @@ export default function RebusZadanie() {
   };
 
   const gotowa = odpowiedz.trim().length > 0;
+  const zakonczony = zapisano;
 
-  if (!rebus) {
+  if (!obrazki[id] || !poprawna) {
     return (
       <SafeAreaView style={styles.wrapper}>
         <Text>Nie znaleziono rebusa.</Text>
@@ -112,7 +140,7 @@ export default function RebusZadanie() {
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.container}>
-              <Text style={styles.rebus}>{rebus.emojiRebus}</Text>
+              <Image source={obrazki[id]} style={styles.rebusImage} />
 
               <TextInput
                 style={styles.input}
@@ -122,14 +150,15 @@ export default function RebusZadanie() {
                   setOdpowiedz(text);
                   if (status !== null) setStatus(null);
                 }}
+                editable={!zakonczony}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
 
               <TouchableOpacity
-                style={[styles.button, !gotowa && styles.buttonDisabled]}
+                style={[styles.button, (!gotowa || zakonczony) && styles.buttonDisabled]}
                 onPress={sprawdzOdpowiedz}
-                disabled={!gotowa}
+                disabled={!gotowa || zakonczony}
               >
                 <Text style={styles.buttonText}>Sprawdź</Text>
               </TouchableOpacity>
@@ -147,6 +176,12 @@ export default function RebusZadanie() {
               >
                 <Text style={styles.powrotText}>← Wybierz inny rebus</Text>
               </TouchableOpacity>
+
+              {zakonczony && (
+                <View style={styles.nakladka}>
+                  <Text style={styles.nakladkaText}>✅ Rebus zaliczony!</Text>
+                </View>
+              )}
             </View>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
@@ -173,10 +208,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rebus: {
-    fontSize: 44,
-    marginBottom: 24,
-    textAlign: 'center',
+  rebusImage: {
+    width: '100%',
+    height: height * 0.5,
+    resizeMode: 'contain',
+    marginBottom: 32,
   },
   input: {
     borderColor: '#ccc',
@@ -189,7 +225,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   button: {
-    backgroundColor: '#E76617',
+    backgroundColor: '#D45500', // ciemniejszy pomarańcz
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -197,7 +233,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   buttonText: {
     color: '#fff',
@@ -220,5 +256,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#3F51B5',
     fontWeight: '600',
+  },
+  nakladka: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  nakladkaText: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
