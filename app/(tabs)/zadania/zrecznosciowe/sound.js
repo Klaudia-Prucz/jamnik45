@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ScrollView,
 } from 'react-native';
 
 const EMOJI_POOL = [
@@ -118,7 +119,7 @@ export default function ZnajdzEmoji() {
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}>
-        <View style={styles.wrapper}>
+        <ScrollView contentContainerStyle={styles.wrapper}>
           <Text style={styles.tytul}>Znajdź pieski i rzeczy z nimi związane</Text>
           <Text style={styles.tekst}>Kliknij wszystkie 7 poprawnych emoji 🐶🦴</Text>
 
@@ -140,7 +141,7 @@ export default function ZnajdzEmoji() {
           <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania/zrecznosciowe')}>
             <Text style={styles.powrotText}>← Wybierz inną grę</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
 
         {finished && (
           <View style={styles.nakladka}>
@@ -162,7 +163,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   wrapper: {
-    flex: 1,
     padding: 20,
     alignItems: 'center',
   },

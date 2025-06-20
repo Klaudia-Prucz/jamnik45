@@ -19,7 +19,6 @@ export default function StronaGlowna() {
   const [szybkieZadanie, setSzybkieZadanie] = useState(null);
   const [userId, setUserId] = useState(null);
 
-  // 📥 Pobierz aktualnego użytkownika
   useFocusEffect(
     useCallback(() => {
       const fetchUser = async () => {
@@ -30,7 +29,6 @@ export default function StronaGlowna() {
     }, [])
   );
 
-  // 📥 Pobierz dane i przelicz procent
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
@@ -64,15 +62,18 @@ export default function StronaGlowna() {
           const progres = Math.min(Math.round((wykonane.size / 45) * 100), 100);
           setProcent(progres);
 
-          // Wybierz losowe szybkie zadanie
           const wszystkie = [
-            ...Array(15).fill(null).map((_, i) => ({ typ: 'quizy', id: `${i}` })),
-            ...Array(10).fill(null).map((_, i) => ({ typ: 'rebusy', id: `${i}` })),
-            ...Array(10).fill(null).map((_, i) => ({ typ: 'specjalne', id: `${i}` })),
-            ...Array(10).fill(null).map((_, i) => ({ typ: 'zrecznosciowe', id: `${i}` })),
+            ...Array(15).fill(null).map((_, i) => ({ typ: 'quizy', id: `quiz${i}` })),
+            ...Array(10).fill(null).map((_, i) => ({ typ: 'rebusy', id: `rebus${i}` })),
+            ...Array(10).fill(null).map((_, i) => ({ typ: 'specjalne', id: `specjal${i}` })),
+            ...[
+              'zlap', 'memory', 'kliknij', 'reakcja', 'traf',
+              'unik', 'rzut', 'shake', 'sound', 'znajdz',
+            ].map(id => ({ typ: 'zrecznosciowe', id })),
           ];
 
           const niewykonane = wszystkie.filter(z => !wykonane.has(z.id));
+
           if (niewykonane.length > 0) {
             const losowe = niewykonane[Math.floor(Math.random() * niewykonane.length)];
             setSzybkieZadanie(losowe);

@@ -135,16 +135,14 @@ export default function KliknijGra() {
               {clicks < 45 && (
                 <Image
                   source={images.ice}
-                  style={[
-                    styles.iceImage,
-                    { opacity: 1 - clicks / 45 }
-                  ]}
+                  style={[styles.iceImage, { opacity: 1 - clicks / 45 }]}
                 />
               )}
               {isPlaying && (
                 <TouchableOpacity
                   style={styles.invisibleClickZone}
                   onPress={() => setClicks((prev) => prev + 1)}
+                  activeOpacity={1}
                 />
               )}
             </View>
@@ -154,6 +152,12 @@ export default function KliknijGra() {
             )}
             {status === 'fail' && (
               <Text style={[styles.infoText, styles.niezaliczone]}>Za mało kliknięć!</Text>
+            )}
+
+            {!isPlaying && !finished && (
+              <TouchableOpacity style={styles.przyciskStart} onPress={startGame}>
+                <Text style={styles.przyciskText}>Start</Text>
+              </TouchableOpacity>
             )}
           </View>
 
@@ -233,6 +237,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 20,
+    backgroundColor: 'transparent', // ✅ ważne dla działania klikania
   },
   infoText: {
     fontSize: 18,
@@ -288,5 +293,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  przyciskStart: {
+    marginTop: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#E76617',
+    borderRadius: 12,
+  },
+  przyciskText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });

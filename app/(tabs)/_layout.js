@@ -1,8 +1,11 @@
 import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets(); // ⬅️ Pobieramy marginesy systemowe
+
   return (
     <Tabs
       screenOptions={({ route }) => ({
@@ -13,7 +16,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#fff',
           borderTopWidth: 0,
-          height: 65,
+          height: 65 + insets.bottom,        // ⬆️ Wyższy pasek z zapasem
+          paddingBottom: insets.bottom,      // ⬆️ Treść tabbara wyżej
           elevation: 0,
         },
         tabBarIcon: ({ color, focused }) => {
@@ -49,7 +53,7 @@ export default function TabLayout() {
       <Tabs.Screen name="pomoc" options={{ title: 'Pomoc' }} />
       <Tabs.Screen name="statystyki" options={{ title: 'Statystyki' }} />
 
-      {/* Ukryte ekrany (brak tabów, brak bezpośredniego wejścia przez adres URL) */}
+      {/* Ukryte ekrany */}
       <Tabs.Screen name="gift" options={{ href: null }} />
       <Tabs.Screen name="dziekujemy" options={{ href: null }} />
       <Tabs.Screen name="end" options={{ href: null }} />
@@ -77,7 +81,6 @@ export default function TabLayout() {
       <Tabs.Screen name="zadania/rebusy/index" options={{ href: null }} />
       <Tabs.Screen name="zadania/rebusy/[id]" options={{ href: null }} />
       <Tabs.Screen name="wroc-za-rok" options={{ href: null }} />
-
     </Tabs>
   );
 }

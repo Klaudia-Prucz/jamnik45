@@ -111,9 +111,14 @@ export default function SzybkiQuiz() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
           {status === 'ready' && (
-            <TouchableOpacity style={styles.startButton} onPress={startGame}>
-              <Text style={styles.startText}>Start</Text>
-            </TouchableOpacity>
+            <View>
+              <Text style={styles.instrukcja}>
+                Odpowiedz na 10 pytań w 3 sekundy każde. Musisz zdobyć co najmniej 8 poprawnych odpowiedzi, aby zaliczyć!
+              </Text>
+              <TouchableOpacity style={styles.startButton} onPress={startGame}>
+                <Text style={styles.startText}>Start</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {status === 'playing' && (
@@ -185,6 +190,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   startText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  instrukcja: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 12,
+  },
   result: {
     fontSize: 22,
     fontWeight: 'bold',
