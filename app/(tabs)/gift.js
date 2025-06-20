@@ -34,7 +34,7 @@ export default function EkranPrezentu() {
       const zrecznosciowe = data.zrecznosciowe?.length || 0;
 
       const suma = quizy + rebusy + specjalne + zrecznosciowe;
-      setGotowe(suma >= 20);
+      setGotowe(suma >= 45);
       setZaladowano(true);
     };
 
@@ -69,7 +69,7 @@ export default function EkranPrezentu() {
         </>
       ) : (
         <Text style={styles.tekst}>
-          🔒 Ukończ wszystkie zadania (44), by odkryć kod do sejfu!
+          🔒 Ukończ wszystkie zadania, by odkryć kod do sejfu!
         </Text>
       )}
     </SafeAreaView>

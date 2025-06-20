@@ -25,18 +25,30 @@ const pytania = [
   { pytanie: 'W jakim kraju leży miasto Dubaj?', odpowiedzi: ['Arabia Saudyjska', 'Katar', 'ZEA'], poprawna: 'ZEA' },
 ];
 
-export default function SzybkiQuiz({ onSuccess }) {
+export default function SzybkiQuiz() {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [status, setStatus] = useState('ready');
+  const [status, setStatus] = useState('loading');
   const [userId, setUserId] = useState(null);
   const [timer, setTimer] = useState(null);
 
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserId(user.id);
+      if (user) {
+        setUserId(user.id);
+        const { data } = await supabase
+          .from('zadania')
+          .select('zrecznosciowe')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (data?.zrecznosciowe?.includes('shake')) {
+          setStatus('done');
+        } else {
+          setStatus('ready');
+        }
+      }
     };
     fetchUser();
   }, []);
@@ -78,7 +90,6 @@ export default function SzybkiQuiz({ onSuccess }) {
       if (score + (odp === pytania[index].poprawna ? 1 : 0) >= 8) {
         setStatus('win');
         oznaczGreJakoUkonczona();
-        onSuccess?.();
       } else {
         setStatus('fail');
       }
@@ -137,6 +148,15 @@ export default function SzybkiQuiz({ onSuccess }) {
             </>
           )}
         </View>
+
+        {status === 'done' && (
+          <View style={styles.nakladka}>
+            <Text style={styles.tekstNakladka}>Gra została już ukończona</Text>
+            <TouchableOpacity style={styles.przyciskNakladka} onPress={goBack}>
+              <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -155,10 +175,7 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     alignSelf: 'center',
   },
-  odpowiedzText: {
-    color: '#fff',
-    fontSize: 18,
-  },
+  odpowiedzText: { color: '#fff', fontSize: 18 },
   startButton: {
     backgroundColor: '#E76617',
     paddingVertical: 14,
@@ -188,5 +205,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  nakladka: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  tekstNakladka: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3F51B5',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  przyciskNakladka: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#3F51B5',
+    borderRadius: 8,
+  },
+  przyciskNakladkaText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

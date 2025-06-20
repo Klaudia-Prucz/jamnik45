@@ -49,11 +49,16 @@ export default function StronaGlowna() {
 
         if (data) {
           const { quizy = [], rebusy = [], zrecznosciowe = [], specjalne = {} } = data;
+
+          const specjalneAccepted = Object.entries(specjalne)
+            .filter(([_, val]) => val?.accepted === true)
+            .map(([key]) => key);
+
           const wykonane = new Set([
             ...quizy,
             ...rebusy,
             ...zrecznosciowe,
-            ...Object.keys(specjalne),
+            ...specjalneAccepted,
           ]);
 
           const progres = Math.min(Math.round((wykonane.size / 45) * 100), 100);

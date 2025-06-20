@@ -51,7 +51,17 @@ export default function GraLogiczna({ onSuccess }) {
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserId(user.id);
+      if (user) {
+        setUserId(user.id);
+        const { data } = await supabase
+          .from('zadania')
+          .select('zrecznosciowe')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (data?.zrecznosciowe?.includes('znajdz')) {
+          setStatus('done');
+        }
+      }
     };
     fetchUser();
   }, []);
@@ -85,32 +95,22 @@ export default function GraLogiczna({ onSuccess }) {
       .eq('user_id', currentUserId)
       .maybeSingle();
 
-    if (error) {
-      console.error('❌ Błąd odczytu:', error.message);
-      return false;
-    }
+    if (error) return false;
 
     const obecne = rekord?.zrecznosciowe || [];
     if (obecne.includes('znajdz')) return true;
 
     const nowe = [...obecne, 'znajdz'];
-
     const { error: updateError } = await supabase
       .from('zadania')
       .update({ zrecznosciowe: nowe })
       .eq('user_id', currentUserId);
 
-    if (updateError) {
-      console.error('❌ Błąd zapisu:', updateError.message);
-      return false;
-    }
-
-    return true;
+    return !updateError;
   };
 
   const handleClick = async (em) => {
     if (status !== 'playing') return;
-
     const aktualna = rundy[index];
     if (!aktualna) return;
 
@@ -143,14 +143,6 @@ export default function GraLogiczna({ onSuccess }) {
     router.replace('/zadania/zrecznosciowe');
   };
 
-  if (status === 'ready' && rundy.length === 0) {
-    return (
-      <View style={[styles.wrapper, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={styles.tytul}>Ładowanie...</Text>
-      </View>
-    );
-  }
-
   const aktualnaRunda = rundy[index];
   const emojiDoWyswietlenia = aktualnaRunda
     ? wymieszajEmoji(aktualnaRunda.emoji, aktualnaRunda.niepasuje)
@@ -173,11 +165,7 @@ export default function GraLogiczna({ onSuccess }) {
               <Text style={styles.sub}>Poprawne: {poprawne} / 10</Text>
               <View style={styles.grid}>
                 {emojiDoWyswietlenia.map((em, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={styles.cell}
-                    onPress={() => handleClick(em)}
-                  >
+                  <TouchableOpacity key={i} style={styles.cell} onPress={() => handleClick(em)}>
                     <Text style={styles.emoji}>{em}</Text>
                   </TouchableOpacity>
                 ))}
@@ -203,6 +191,15 @@ export default function GraLogiczna({ onSuccess }) {
             </>
           )}
         </View>
+
+        {status === 'done' && (
+          <View style={styles.nakladka}>
+            <Text style={styles.tekstNakladka}>Gra została już ukończona</Text>
+            <TouchableOpacity style={styles.przyciskNakladka} onPress={goBack}>
+              <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -276,5 +273,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  nakladka: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  tekstNakladka: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3F51B5',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  przyciskNakladka: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#3F51B5',
+    borderRadius: 8,
+  },
+  przyciskNakladkaText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -33,11 +33,24 @@ export default function RzutGra() {
   const [status, setStatus] = useState('intro');
   const [summary, setSummary] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [finished, setFinished] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserId(user.id);
+      if (user) {
+        setUserId(user.id);
+        const { data, error } = await supabase
+          .from('zadania')
+          .select('zrecznosciowe')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!error && data?.zrecznosciowe?.includes('rzut')) {
+          setFinished(true);
+          setStatus('done');
+        }
+      }
     };
     fetchUser();
   }, []);
@@ -152,6 +165,18 @@ export default function RzutGra() {
                 <Text style={styles.przyciskNakladkaText}>
                   {trafione >= 5 ? 'Wróć do zadań' : 'Spróbuj ponownie'}
                 </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {status === 'done' && finished && (
+            <View style={styles.nakladka}>
+              <Text style={styles.tekstNakladka}>Już ukończyłeś to zadanie!</Text>
+              <TouchableOpacity
+                style={styles.przyciskNakladka}
+                onPress={() => router.replace('/zadania/zrecznosciowe')}
+              >
+                <Text style={styles.przyciskNakladkaText}>Wróć do zadań</Text>
               </TouchableOpacity>
             </View>
           )}

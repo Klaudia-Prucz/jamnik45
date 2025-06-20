@@ -16,7 +16,8 @@
         "foregroundImage": "./assets/logoq45.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.klaudia.prucz.questnik45"
     },
     "web": {
       "bundler": "metro",
@@ -28,15 +29,23 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/logoq45.pngg",
+          "image": "./assets/logoq45.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "799f7b4a-6445-4109-aec6-4d611e5c3e09"
+      }
+    },
+    "owner": "klaudia.prucz"
   }
 }

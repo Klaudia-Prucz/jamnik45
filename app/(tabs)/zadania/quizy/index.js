@@ -12,34 +12,49 @@ import {
 
 export default function ListaQuizow() {
   const router = useRouter();
+  const [wszystkieQuizy, setWszystkieQuizy] = useState([]);
   const [ukonczoneQuizy, setUkonczoneQuizy] = useState([]);
 
   useFocusEffect(
     useCallback(() => {
-      const pobierzQuizy = async () => {
+      const pobierzDane = async () => {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) {
+        if (!user || userError) {
           console.error('❌ Błąd autoryzacji:', userError?.message);
           return;
         }
+
+        console.log('🔐 Użytkownik:', user.id);
+
+        const { data: quizy, error: quizError } = await supabase
+          .from('quizy')
+          .select('*');
+
+        console.log('📦 Quizy z bazy:', quizy);
+        if (quizError) {
+          console.error('❌ Błąd pobierania quizów:', quizError.message);
+        }
+
+        setWszystkieQuizy(quizy || []);
 
         const { data, error } = await supabase
           .from('zadania')
           .select('quizy')
           .eq('user_id', user.id)
-          .maybeSingle(); // 1 rekord na użytkownika
+          .maybeSingle();
 
         if (error) {
-          console.error('❌ Błąd pobierania quizów z Supabase:', error.message);
+          console.error('❌ Błąd pobierania quizów z zadania:', error.message);
           return;
         }
 
+        console.log('📋 Zadania użytkownika (quizy):', data);
+
         const lista = Array.isArray(data?.quizy) ? data.quizy : [];
-        console.log('✅ Ukończone quizy:', lista);
         setUkonczoneQuizy(lista);
       };
 
-      pobierzQuizy();
+      pobierzDane();
     }, [])
   );
 
@@ -47,25 +62,29 @@ export default function ListaQuizow() {
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.wrapper}>
         <View style={styles.srodek}>
-          <Text style={styles.tytul}>🧠 Wybierz zestaw quizów</Text>
+          <Text style={styles.tytul}>Wybierz zestaw quizów</Text>
 
           <View style={styles.lista}>
-            {[...Array(15)].map((_, i) => {
-              const id = `${i + 1}`; // Dopasowane do formatu z bazy ["2", "3"]
-              const ukonczony = ukonczoneQuizy.includes(id);
+            {wszystkieQuizy.length === 0 ? (
+              <Text style={styles.info}>Brak dostępnych quizów.</Text>
+            ) : (
+              wszystkieQuizy.map((quiz, i) => {
+                const id = quiz.id;
+                const ukonczony = ukonczoneQuizy.includes(id);
 
-              return (
-                <TouchableOpacity
-                  key={id}
-                  style={[styles.kafelek, ukonczony && styles.kafelekUkonczony]}
-                  onPress={() => router.push(`/zadania/quizy/${i + 1}`)}
-                >
-                  <Text style={styles.kafelekText}>
-                    {ukonczony ? `✅ Quiz ${i + 1}` : `Quiz ${i + 1}`}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                return (
+                  <TouchableOpacity
+                    key={id}
+                    style={[styles.kafelek, ukonczony && styles.kafelekUkonczony]}
+                    onPress={() => router.push(`/zadania/quizy/${id}`)}
+                  >
+                    <Text style={styles.kafelekText}>
+                      {ukonczony ? `✅ ${quiz.nazwa}` : quiz.nazwa}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
         </View>
 
@@ -96,11 +115,12 @@ const styles = StyleSheet.create({
   },
   kafelek: {
     backgroundColor: '#E76617',
-    width: 90,
-    height: 90,
+    width: 100,
+    height: 100,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 10,
   },
   kafelekUkonczony: {
     backgroundColor: '#4CAF50',
@@ -108,6 +128,12 @@ const styles = StyleSheet.create({
   kafelekText: {
     color: '#FFF',
     fontWeight: 'bold',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  info: {
+    marginTop: 30,
+    color: '#999',
     fontSize: 16,
     textAlign: 'center',
   },

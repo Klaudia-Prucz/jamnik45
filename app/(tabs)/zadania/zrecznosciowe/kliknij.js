@@ -166,7 +166,7 @@ export default function KliknijGra() {
           <View style={styles.nakladka}>
             <Image source={images.reveal} style={styles.nakladkaReveal} />
             <Text style={styles.tekstNakladka}>Gra została już ukończona</Text>
-            <TouchableOpacity style={styles.przyciskNakladka} onPress={() => router.replace('/zadania')}>
+            <TouchableOpacity style={styles.przyciskNakladka} onPress={() => router.replace('/zadania/zrecznosciowe')}>
               <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
             </TouchableOpacity>
           </View>

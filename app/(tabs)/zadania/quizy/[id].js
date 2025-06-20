@@ -9,31 +9,67 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { QUIZY } from './quizyBaza';
 
 export default function Quiz() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-
-  const quizId = (Array.isArray(id) ? id[0] : String(id)).replace('quiz', '');
 
   const [quiz, setQuiz] = useState(null);
   const [aktualne, setAktualne] = useState(0);
   const [odpowiedzi, setOdpowiedzi] = useState([]);
   const [pokazWynik, setPokazWynik] = useState(false);
   const [poprawne, setPoprawne] = useState(0);
+  const [czyZaliczony, setCzyZaliczony] = useState(false);
+
+  const quizId = Array.isArray(id) ? id[0] : String(id);
 
   useEffect(() => {
-    const znaleziony = QUIZY.find((q) => q.id === quizId);
-    setQuiz(znaleziony);
+    if (!quizId) return;
+
+    // Reset stanu przy zmianie quizu
+    setQuiz(null);
     setAktualne(0);
     setOdpowiedzi([]);
     setPokazWynik(false);
     setPoprawne(0);
+    setCzyZaliczony(false);
+
+    const fetchQuiz = async () => {
+      const { data, error } = await supabase
+        .from('quizy')
+        .select('*')
+        .eq('id', quizId)
+        .maybeSingle();
+
+      if (!data) {
+        setQuiz(null);
+        return;
+      }
+
+      setQuiz(data);
+    };
+
+    const sprawdzCzyZaliczony = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('zadania')
+        .select('quizy')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data?.quizy?.includes(quizId)) {
+        setCzyZaliczony(true);
+      }
+    };
+
+    fetchQuiz();
+    sprawdzCzyZaliczony();
   }, [quizId]);
 
   useEffect(() => {
-    if (pokazWynik && poprawne >= 3) {
+    if (pokazWynik && poprawne >= quiz?.pytania?.length) {
       zapiszDoBazy();
     }
   }, [pokazWynik]);
@@ -55,15 +91,13 @@ export default function Quiz() {
     if (!rekord) {
       const { data: nowy, error: insertError } = await supabase
         .from('zadania')
-        .insert([
-          {
-            user_id: user.id,
-            quizy: [],
-            rebusy: [],
-            zrecznosciowe: [],
-            specjalne: {},
-          }
-        ])
+        .insert([{
+          user_id: user.id,
+          quizy: [quizId],
+          rebusy: [],
+          zrecznosciowe: [],
+          specjalne: {},
+        }])
         .select()
         .single();
 
@@ -72,65 +106,54 @@ export default function Quiz() {
         return;
       }
 
-      rekord = nowy;
+      setCzyZaliczony(true);
+      return;
     }
 
     const aktualneQuizy = rekord.quizy || [];
 
-    if (aktualneQuizy.includes(quiz.id)) {
+    if (aktualneQuizy.includes(quizId)) {
       console.log('Quiz już zapisany');
+      setCzyZaliczony(true);
       return;
     }
 
     const { error: updateError } = await supabase
       .from('zadania')
-      .update({
-        quizy: [...aktualneQuizy, quiz.id],
-      })
+      .update({ quizy: [...aktualneQuizy, quizId] })
       .eq('user_id', user.id);
 
     if (updateError) {
       console.error('❌ Błąd podczas zapisu:', updateError.message);
     } else {
       console.log('✅ Quiz zapisany do bazy!');
+      setCzyZaliczony(true);
     }
   };
 
-  if (!quiz) {
+  if (!quiz || !quiz.pytania || quiz.pytania.length === 0) {
     return (
       <SafeAreaView style={styles.wrapper}>
-        <Text style={styles.error}>Nie znaleziono quizu 😢</Text>
+        <Text style={styles.error}>Nie znaleziono pytań w quizie 😢</Text>
       </SafeAreaView>
     );
   }
 
-  if (pokazWynik) {
+  if (czyZaliczony || pokazWynik) {
     return (
       <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
         <SafeAreaView style={styles.wrapper}>
-          <Text style={styles.tytul}>Wynik quizu</Text>
-          <Text style={styles.pytanie}>
-            Poprawne odpowiedzi: {poprawne} / {quiz.pytania.length}
-          </Text>
-          {poprawne >= 3 ? (
+          <View style={styles.top}>
+            <Text style={styles.tytul}>Wynik quizu</Text>
+            <Text style={styles.pytanie}>Poprawne odpowiedzi: {poprawne} / {quiz.pytania.length}</Text>
             <Text style={styles.sukces}>Quiz zaliczony ✅</Text>
-          ) : (
-            <TouchableOpacity
-              style={styles.przycisk}
-              onPress={() => {
-                setAktualne(0);
-                setOdpowiedzi([]);
-                setPokazWynik(false);
-                setPoprawne(0);
-              }}
-            >
-              <Text style={styles.tekst}>Spróbuj ponownie</Text>
-            </TouchableOpacity>
-          )}
+          </View>
 
-          <TouchableOpacity style={styles.powrot} onPress={() => router.back()}>
-            <Text style={styles.powrotText}>← Powrót</Text>
-          </TouchableOpacity>
+          <View style={styles.bottom}>
+            <TouchableOpacity style={styles.przyciskDol} onPress={() => router.push('/zadania/quizy')}>
+              <Text style={styles.tekst}>← Powrót do reszty quizów</Text>
+            </TouchableOpacity>
+          </View>
         </SafeAreaView>
       </ImageBackground>
     );
@@ -172,7 +195,7 @@ export default function Quiz() {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.powrot} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.przyciskPowrot} onPress={() => router.back()}>
           <Text style={styles.powrotText}>← Powrót</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -182,7 +205,19 @@ export default function Quiz() {
 
 const styles = StyleSheet.create({
   tlo: { flex: 1 },
-  wrapper: { flex: 1, padding: 20, justifyContent: 'space-between' },
+  wrapper: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'space-between',
+  },
+  top: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottom: {
+    paddingBottom: 30,
+  },
   tytul: {
     fontSize: 22,
     fontWeight: 'bold',
@@ -211,15 +246,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 20,
   },
-  przycisk: {
+  przyciskDol: {
     backgroundColor: '#3F51B5',
     padding: 14,
     borderRadius: 14,
     alignItems: 'center',
-    marginTop: 20,
   },
   tekst: { color: '#FFF', fontSize: 16, fontWeight: '600' },
-  powrot: { marginTop: 30, alignItems: 'center' },
-  powrotText: { color: '#3F51B5', fontSize: 16, fontWeight: '600' },
-  error: { fontSize: 18, color: 'red', textAlign: 'center', marginTop: 50 },
+
+ 
+  przyciskPowrot: {
+    backgroundColor: '#3F51B5',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 30,
+    marginBottom: 40, 
+    alignSelf: 'center',
+  },
+  powrotText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  error: {
+    fontSize: 18,
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 50,
+  },
 });

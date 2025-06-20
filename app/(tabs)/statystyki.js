@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ImageBackground,
   Platform,
@@ -12,7 +13,6 @@ import {
 import { supabase } from '../../supabaseClient';
 
 export default function Statystyki() {
-  const [userId, setUserId] = useState(null);
   const [daneZadan, setDaneZadan] = useState({
     quizy: 0,
     rebusy: 0,
@@ -22,58 +22,58 @@ export default function Statystyki() {
     procent: 0,
   });
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-      } else if (error) {
-        console.warn('❌ Błąd pobierania użytkownika:', error.message);
-      }
-    };
-    fetchUser();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchData = async () => {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (!user || userError) {
+          console.warn('❌ Błąd pobierania użytkownika:', userError?.message);
+          return;
+        }
 
-  useEffect(() => {
-    if (!userId) return;
+        const userId = user.id;
 
-    const fetchStats = async () => {
-      const { data, error } = await supabase
-        .from('zadania')
-        .select('quizy, rebusy, zrecznosciowe, specjalne')
-        .eq('user_id', userId)
-        .maybeSingle();
+        const { data, error } = await supabase
+          .from('zadania')
+          .select('quizy, rebusy, zrecznosciowe, specjalne')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-      if (error) {
-        console.warn('❌ Błąd pobierania danych zadań:', error.message);
-        return;
-      }
+        if (error) {
+          console.warn('❌ Błąd pobierania danych zadań:', error.message);
+          return;
+        }
 
-      const quizy = data?.quizy || [];
-      const rebusy = data?.rebusy || [];
-      const zrecznosciowe = data?.zrecznosciowe || [];
-      const specjalne = data?.specjalne || {};
+        const quizy = data?.quizy || [];
+        const rebusy = data?.rebusy || [];
+        const zrecznosciowe = data?.zrecznosciowe || [];
+        const specjalne = data?.specjalne || {};
 
-      const q = quizy.length;
-      const r = rebusy.length;
-      const z = zrecznosciowe.length;
-      const s = Object.keys(specjalne).length;
+        const specjalneAccepted = Object.entries(specjalne).filter(
+          ([_, val]) => val?.accepted === true
+        );
 
-      const wykonane = new Set([
-        ...quizy,
-        ...rebusy,
-        ...zrecznosciowe,
-        ...Object.keys(specjalne),
-      ]);
+        const q = quizy.length;
+        const r = rebusy.length;
+        const z = zrecznosciowe.length;
+        const s = specjalneAccepted.length;
 
-      const razem = wykonane.size;
-      const procent = Math.round((razem / 45) * 100);
+        const wykonane = new Set([
+          ...quizy,
+          ...rebusy,
+          ...zrecznosciowe,
+          ...specjalneAccepted.map(([key]) => key),
+        ]);
 
-      setDaneZadan({ quizy: q, rebusy: r, zrecznosciowe: z, specjalne: s, razem, procent });
-    };
+        const razem = wykonane.size;
+        const procent = Math.round((razem / 45) * 100);
 
-    fetchStats();
-  }, [userId]);
+        setDaneZadan({ quizy: q, rebusy: r, zrecznosciowe: z, specjalne: s, razem, procent });
+      };
+
+      fetchData();
+    }, [])
+  );
 
   const renderProgress = (label, done, total) => (
     <View style={styles.barWrapper}>

@@ -9,6 +9,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ScrollView,
 } from 'react-native';
 import { supabase } from '@/supabaseClient';
 
@@ -16,7 +17,6 @@ export default function ListaZadanSpecjalnych() {
   const router = useRouter();
   const [zadania, setZadania] = useState({});
   const [userId, setUserId] = useState(null);
-
 
   useFocusEffect(
     useCallback(() => {
@@ -28,7 +28,6 @@ export default function ListaZadanSpecjalnych() {
     }, [])
   );
 
- 
   useFocusEffect(
     useCallback(() => {
       const pobierz = async () => {
@@ -57,7 +56,7 @@ export default function ListaZadanSpecjalnych() {
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}>
-        <View style={styles.wrapper}>
+        <ScrollView contentContainerStyle={styles.wrapper}>
           <Text style={styles.tytul}>Wybierz zadanie specjalne</Text>
 
           <View style={styles.lista}>
@@ -99,7 +98,7 @@ export default function ListaZadanSpecjalnych() {
           <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania')}>
             <Text style={styles.powrotText}>← Powrót do kategorii zadań</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </ImageBackground>
   );
@@ -111,13 +110,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
-  wrapper: { flex: 1, padding: 20, justifyContent: 'space-between' },
+  wrapper: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 20,
+  },
   tytul: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#3F51B5',
-    marginBottom: 20,
     textAlign: 'center',
+    marginBottom: 10,
   },
   lista: {
     flexDirection: 'row',
@@ -141,8 +145,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   powrot: {
-    alignItems: 'center',
-    marginBottom: 40,
+    marginTop: 30,
+    marginBottom: 50,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3F51B5',
   },
   powrotText: {
     color: '#3F51B5',

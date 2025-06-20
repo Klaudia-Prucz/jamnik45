@@ -18,14 +18,46 @@ const EMOJI_POOL = [
   '🐙', '🦑', '🦞', '🦀', '🐡', '🐠', '🐳', '🦈', '🐊', '🦓', '🦍', '🦧',
   '🦒', '🐫', '🐘', '🦣', '🦮', '🐕‍🦺', '🐩', '🐕', '🦴', '🛏️'
 ];
-
 const CELE = ['🐶', '🦮', '🐕‍🦺', '🐩', '🐕', '🦴', '🛏️'];
 
-export default function ZnajdzEmoji({ onSuccess }) {
+export default function ZnajdzEmoji() {
   const router = useRouter();
-  const [klikniete, setKlikniete] = useState([]);
   const [emojiGrid, setEmojiGrid] = useState([]);
-  const [completed, setCompleted] = useState(false);
+  const [klikniete, setKlikniete] = useState([]);
+  const [userId, setUserId] = useState(null);
+  const [finished, setFinished] = useState(false);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+      if (error) console.warn('Błąd pobierania użytkownika:', error.message);
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const sprawdzCzyUkonczona = async () => {
+      const { data, error } = await supabase
+        .from('zadania')
+        .select('zrecznosciowe')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('❌ Błąd sprawdzania gry:', error.message);
+        return;
+      }
+
+      if (data?.zrecznosciowe?.includes('sound')) {
+        setFinished(true);
+      }
+    };
+
+    sprawdzCzyUkonczona();
+  }, [userId]);
 
   useEffect(() => {
     const shuffled = [...EMOJI_POOL].sort(() => 0.5 - Math.random());
@@ -34,91 +66,90 @@ export default function ZnajdzEmoji({ onSuccess }) {
     setEmojiGrid(final.slice(0, 48));
   }, []);
 
-  const zapiszJakoUkonczone = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
-
-    const { data: istnieje } = await supabase
-      .from('zadania')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('zadanie_id', 'sound')
-      .eq('kategoria', 'zrecznosciowe')
-      .maybeSingle();
-
-    if (istnieje) return true;
-
-    const { error } = await supabase.from('zadania').insert([
-      {
-        user_id: user.id,
-        zadanie_id: 'sound',
-        kategoria: 'zrecznosciowe',
-      },
-    ]);
-
-    return !error;
-  };
-
-  const handlePress = (emoji) => {
-    setKlikniete((prev) => {
-      const zbior = new Set([...prev, emoji]);
-      return Array.from(zbior);
-    });
-  };
-
   useEffect(() => {
-    if (completed) return;
-
-    const poprawneKlikniecia = klikniete.filter((em) => CELE.includes(em));
-
-    if (poprawneKlikniecia.length === CELE.length) {
-      const zapisz = async () => {
-        const zapisane = await zapiszJakoUkonczone();
-        if (zapisane) {
-          setCompleted(true);
-          onSuccess?.();
-        }
-      };
-      zapisz();
+    const poprawne = klikniete.filter((e) => CELE.includes(e));
+    if (userId && !finished && poprawne.length === CELE.length) {
+      oznaczGreJakoUkonczona();
+      setFinished(true);
     }
   }, [klikniete]);
 
-  const goBack = () => {
-    router.replace('/zadania/zrecznosciowe');
+  const oznaczGreJakoUkonczona = async () => {
+    const { data, error } = await supabase
+      .from('zadania')
+      .select('zrecznosciowe')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('❌ Błąd odczytu zadania:', error.message);
+      return;
+    }
+
+    const aktualne = data?.zrecznosciowe || [];
+
+    if (!aktualne.includes('sound')) {
+      const zaktualizowane = [...aktualne, 'sound'];
+      const { error: updateError } = await supabase
+        .from('zadania')
+        .update({ zrecznosciowe: zaktualizowane })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.warn('❌ Błąd aktualizacji zrecznosciowe:', updateError.message);
+      } else {
+        console.log('✅ Gra "sound" zapisana jako ukończona!');
+      }
+    } else {
+      console.log('ℹ️ Gra "sound" była już wcześniej ukończona.');
+    }
+  };
+
+  const handlePress = (emoji) => {
+    if (finished || !CELE.includes(emoji)) return;
+
+    setKlikniete((prev) => {
+      const zbior = new Set(prev);
+      zbior.add(emoji);
+      return Array.from(zbior);
+    });
   };
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
-          <Text style={styles.tytul}>🔍 Znajdź wszystkie pieski i rzeczy z nimi związane!</Text>
-          <Text style={styles.counter}>
-            Znaleziono: {
-              klikniete.filter((em) => CELE.includes(em)).length
-            } / {CELE.length}
-          </Text>
+          <Text style={styles.tytul}>Znajdź pieski i rzeczy z nimi związane</Text>
+          <Text style={styles.tekst}>Kliknij wszystkie 7 poprawnych emoji 🐶🦴</Text>
 
           <View style={styles.grid}>
             {emojiGrid.map((em, i) => (
               <TouchableOpacity
                 key={i}
-                style={[styles.cell, klikniete.includes(em) && styles.clicked]}
+                style={[styles.cell, CELE.includes(em) && klikniete.includes(em) && styles.clicked]}
                 onPress={() => handlePress(em)}
+                disabled={finished}
               >
                 <Text style={styles.emoji}>{em}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {completed && (
-            <View style={styles.nakladka}>
-              <Text style={styles.tekstNakladka}>✅ Udało się! Znalazłeś wszystkie!</Text>
-              <TouchableOpacity style={styles.przyciskNakladka} onPress={goBack}>
-                <Text style={styles.przyciskNakladkaText}>⬅ Wróć do zestawu gier</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          {finished && <Text style={styles.sukces}>Gra ukończona!</Text>}
+
+          <TouchableOpacity style={styles.powrot} onPress={() => router.replace('/zadania/zrecznosciowe')}>
+            <Text style={styles.powrotText}>← Wybierz inną grę</Text>
+          </TouchableOpacity>
         </View>
+
+        {finished && (
+          <View style={styles.nakladka}>
+            <Text style={styles.tekstNakladka}>Gra została już ukończona</Text>
+            <TouchableOpacity style={styles.przyciskNakladka} onPress={() => router.replace('/zadania/zrecznosciowe')}>
+              <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -132,68 +163,81 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     flex: 1,
-    padding: 16,
-    justifyContent: 'space-between',
+    padding: 20,
+    alignItems: 'center',
   },
   tytul: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#3F51B5',
+    marginTop: 20,
+    marginBottom: 10,
     textAlign: 'center',
-    marginBottom: 12,
   },
-  counter: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#3F51B5',
+  tekst: {
+    fontSize: 16,
+    color: '#333',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 6,
   },
   cell: {
-    width: 50,
-    height: 50,
-    backgroundColor: '#ffffffcc',
+    width: 60,
+    height: 60,
+    margin: 6,
+    borderRadius: 10,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    margin: 4,
-    borderRadius: 8,
   },
   clicked: {
     backgroundColor: '#E76617aa',
   },
   emoji: {
-    fontSize: 24,
+    fontSize: 26,
+  },
+  sukces: {
+    marginTop: 30,
+    fontSize: 22,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  powrot: {
+    marginTop: 40,
+  },
+  powrotText: {
+    color: '#3F51B5',
+    fontSize: 16,
+    fontWeight: '600',
   },
   nakladka: {
-    marginTop: 24,
-    alignItems: 'center',
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255,255,255,0.85)',
-    padding: 20,
-    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
   },
   tekstNakladka: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#3F51B5',
     textAlign: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 20,
   },
   przyciskNakladka: {
-    backgroundColor: '#3F51B5',
+    marginTop: 20,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#3F51B5',
     borderRadius: 8,
   },
   przyciskNakladkaText: {
-    color: '#ffffff',
+    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: '600',
   },
 });

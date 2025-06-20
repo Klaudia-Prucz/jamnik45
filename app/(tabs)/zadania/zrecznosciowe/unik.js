@@ -23,7 +23,7 @@ const images = [
   require('@/assets/memory/7.png'),
 ];
 
-export default function MemoryGame() {
+export default function UnikGame() {
   const router = useRouter();
   const [sequence, setSequence] = useState([]);
   const [userSequence, setUserSequence] = useState([]);
@@ -142,11 +142,12 @@ export default function MemoryGame() {
           </View>
         )}
 
+        {/* Nakładka końcowa */}
         {status === 'done' && (
-          <View style={styles.wrapper}>
-            <Text style={styles.info}>Zadanie zaliczone!</Text>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/zadania/zrecznosciowe')}>
-              <Text style={styles.backText}>⬅ Wróć do pozostałych gier</Text>
+          <View style={styles.nakladka}>
+            <Text style={styles.tekstNakladka}>Gra została już ukończona</Text>
+            <TouchableOpacity style={styles.przyciskNakladka} onPress={() => router.replace('/zadania/zrecznosciowe')}>
+              <Text style={styles.przyciskNakladkaText}>Wróć do pozostałych gier</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -179,6 +180,30 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   img: { width: 70, height: 70, margin: 10, borderRadius: 12 },
-  backButton: { backgroundColor: '#3F51B5', padding: 12, borderRadius: 8, marginTop: 20 },
-  backText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  nakladka: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  tekstNakladka: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3F51B5',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  przyciskNakladka: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#3F51B5',
+    borderRadius: 8,
+  },
+  przyciskNakladkaText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
