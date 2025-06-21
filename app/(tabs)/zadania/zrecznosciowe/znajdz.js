@@ -153,9 +153,15 @@ export default function GraLogiczna({ onSuccess }) {
       <SafeAreaView style={styles.safe}>
         <View style={styles.wrapper}>
           {status === 'ready' && (
-            <TouchableOpacity style={styles.startButton} onPress={startGame}>
-              <Text style={styles.startText}>Start</Text>
-            </TouchableOpacity>
+            <>
+              <Text style={styles.wstep}>
+                Twoim zadaniem jest wybrać emoji, które{' '}
+                <Text style={{ fontWeight: 'bold' }}>nie pasuje do reszty</Text>. Masz maksymalnie 3 pomyłki – zdobądź 10 poprawnych, by wygrać!
+              </Text>
+              <TouchableOpacity style={styles.startButton} onPress={startGame}>
+                <Text style={styles.startText}>Start</Text>
+              </TouchableOpacity>
+            </>
           )}
 
           {status === 'playing' && (
@@ -273,6 +279,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  wstep: {
+    fontSize: 18,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
   nakladka: {
     ...StyleSheet.absoluteFillObject,

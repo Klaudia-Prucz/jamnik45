@@ -179,7 +179,10 @@ export default function RebusZadanie() {
 
               {zakonczony && (
                 <View style={styles.nakladka}>
-                  <Text style={styles.nakladkaText}>✅ Rebus zaliczony!</Text>
+                  <Text style={styles.nakladkaText}>Rebus zaliczony!</Text>
+                  <TouchableOpacity style={styles.nakladkaBtn} onPress={() => router.push('/zadania/rebusy')}>
+                    <Text style={styles.nakladkaBtnText}>Wróć do reszty rebusów</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -225,7 +228,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   button: {
-    backgroundColor: '#D45500', // ciemniejszy pomarańcz
+    backgroundColor: '#D45500',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -273,5 +276,17 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  nakladkaBtn: {
+    marginTop: 24,
+    backgroundColor: '#3F51B5',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  nakladkaBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

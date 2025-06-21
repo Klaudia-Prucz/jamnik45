@@ -3,7 +3,9 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ImageBackground,
+  Platform,
   SafeAreaView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -60,7 +62,7 @@ export default function ListaQuizow() {
 
   return (
     <ImageBackground source={require('@/assets/backstandard.png')} style={styles.tlo}>
-      <SafeAreaView style={styles.wrapper}>
+      <SafeAreaView style={[styles.wrapper, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 20 }]}>
         <View style={styles.srodek}>
           <Text style={styles.tytul}>Wybierz zestaw quizów</Text>
 
@@ -68,7 +70,7 @@ export default function ListaQuizow() {
             {wszystkieQuizy.length === 0 ? (
               <Text style={styles.info}>Brak dostępnych quizów.</Text>
             ) : (
-              wszystkieQuizy.map((quiz, i) => {
+              wszystkieQuizy.map((quiz) => {
                 const id = quiz.id;
                 const ukonczony = ukonczoneQuizy.includes(id);
 
@@ -98,7 +100,11 @@ export default function ListaQuizow() {
 
 const styles = StyleSheet.create({
   tlo: { flex: 1 },
-  wrapper: { flex: 1, padding: 20, justifyContent: 'space-between' },
+  wrapper: {
+    flex: 1,
+    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+  },
   srodek: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   tytul: {
     fontSize: 24,

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -16,23 +16,53 @@ import { supabase } from '@/supabaseClient';
 export default function StronaGlowna() {
   const router = useRouter();
   const [procent, setProcent] = useState(0);
-  const [szybkieZadanie, setSzybkieZadanie] = useState(null);
-  const [userId, setUserId] = useState(null);
+  const [odliczanie, setOdliczanie] = useState('');
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchUser = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) setUserId(user.id);
-      };
-      fetchUser();
-    }, [])
-  );
+  useEffect(() => {
+    const cel = new Date('2025-06-29T00:00:00');
+    const interval = setInterval(() => {
+      const teraz = new Date();
+      const roznica = cel - teraz;
+
+      if (roznica <= 0) {
+        setOdliczanie('🎂 To dziś! Wszystkiego najlepszego!');
+        clearInterval(interval);
+      } else {
+        const dni = Math.floor(roznica / (1000 * 60 * 60 * 24));
+        const godziny = Math.floor((roznica / (1000 * 60 * 60)) % 24);
+        const minuty = Math.floor((roznica / (1000 * 60)) % 60);
+        const sekundy = Math.floor((roznica / 1000) % 60);
+
+        setOdliczanie(`${dni}d ${godziny}h ${minuty}m ${sekundy}s`);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
-        if (!userId) return;
+        console.log('🔁 Start ładowania użytkownika i danych z Supabase');
+
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('❌ Błąd pobierania usera:', userError?.message);
+          return;
+        }
+
+        const userId = user.id;
+        console.log('✅ userId:', userId);
+
+        const { data: quizyZBazy, error: quizyError } = await supabase
+          .from('quizy')
+          .select('id');
+
+        if (quizyError) {
+          console.error('❌ Błąd pobierania quizów z bazy:', quizyError.message);
+        }
+
+        const quizy = (quizyZBazy || []).map(q => q.id);
 
         const { data, error } = await supabase
           .from('zadania')
@@ -45,46 +75,32 @@ export default function StronaGlowna() {
           return;
         }
 
-        if (data) {
-          const { quizy = [], rebusy = [], zrecznosciowe = [], specjalne = {} } = data;
-
-          const specjalneAccepted = Object.entries(specjalne)
-            .filter(([_, val]) => val?.accepted === true)
-            .map(([key]) => key);
-
-          const wykonane = new Set([
-            ...quizy,
-            ...rebusy,
-            ...zrecznosciowe,
-            ...specjalneAccepted,
-          ]);
-
-          const progres = Math.min(Math.round((wykonane.size / 45) * 100), 100);
-          setProcent(progres);
-
-          const wszystkie = [
-            ...Array(15).fill(null).map((_, i) => ({ typ: 'quizy', id: `quiz${i}` })),
-            ...Array(10).fill(null).map((_, i) => ({ typ: 'rebusy', id: `rebus${i}` })),
-            ...Array(10).fill(null).map((_, i) => ({ typ: 'specjalne', id: `specjal${i}` })),
-            ...[
-              'zlap', 'memory', 'kliknij', 'reakcja', 'traf',
-              'unik', 'rzut', 'shake', 'sound', 'znajdz',
-            ].map(id => ({ typ: 'zrecznosciowe', id })),
-          ];
-
-          const niewykonane = wszystkie.filter(z => !wykonane.has(z.id));
-
-          if (niewykonane.length > 0) {
-            const losowe = niewykonane[Math.floor(Math.random() * niewykonane.length)];
-            setSzybkieZadanie(losowe);
-          } else {
-            setSzybkieZadanie(null);
-          }
+        if (!data) {
+          console.warn('⚠️ Brak danych z tabeli zadania dla usera:', userId);
+          return;
         }
+
+        console.log('✅ Dane z bazy:', data);
+
+        const { quizy: zaliczoneQuizy = [], rebusy = [], zrecznosciowe = [], specjalne = {} } = data;
+
+        const specjalneAccepted = Object.entries(specjalne)
+          .filter(([_, val]) => val?.accepted === true)
+          .map(([key]) => key);
+
+        const wykonane = new Set([
+          ...zaliczoneQuizy,
+          ...rebusy,
+          ...zrecznosciowe,
+          ...specjalneAccepted,
+        ]);
+
+        const progres = Math.min(Math.round((wykonane.size / 45) * 100), 100);
+        setProcent(progres);
       };
 
       fetchData();
-    }, [userId])
+    }, [])
   );
 
   return (
@@ -93,22 +109,14 @@ export default function StronaGlowna() {
         <View style={styles.wrapper}>
           <Text style={styles.naglowek}>Witaj w swojej urodzinowej appce!</Text>
 
+          <Text style={styles.odliczanie}>Do urodzin zostało: {odliczanie}</Text>
+
           <View style={styles.postepContainer}>
-            <Text style={styles.procent}>{procent}%</Text>
+            <Text style={styles.procent}>Postęp wykonania zadań: {procent}%</Text>
             <View style={styles.progressBarBackground}>
               <View style={[styles.progressBarFill, { width: `${procent}%` }]} />
             </View>
           </View>
-
-          {szybkieZadanie && (
-            <TouchableOpacity
-              style={[styles.card, { borderColor: '#E76617', borderWidth: 2 }]}
-              onPress={() => router.push(`/zadania/${szybkieZadanie.typ}/${szybkieZadanie.id}`)}
-            >
-              <Feather name="zap" size={28} color="#E76617" />
-              <Text style={styles.cardText}>Losuj zadanie</Text>
-            </TouchableOpacity>
-          )}
 
           <TouchableOpacity style={styles.card} onPress={() => router.push('/zadania')}>
             <Feather name="target" size={32} color="#3F51B5" />
@@ -149,10 +157,17 @@ const styles = StyleSheet.create({
     color: '#3F51B5',
     textAlign: 'center',
     marginTop: 40,
-    marginBottom: 20,
+    marginBottom: 10,
     textShadowColor: 'rgba(255,255,255,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
+  },
+  odliczanie: {
+    fontSize: 18,
+    color: '#E76617',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 10,
   },
   postepContainer: {
     alignItems: 'center',
@@ -170,8 +185,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#3F51B5',
   },
   procent: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#3F51B5',
     marginBottom: 6,
   },

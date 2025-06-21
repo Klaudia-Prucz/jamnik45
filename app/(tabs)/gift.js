@@ -30,10 +30,12 @@ export default function EkranPrezentu() {
 
       const quizy = data.quizy?.length || 0;
       const rebusy = data.rebusy?.length || 0;
-      const specjalne = data.specjalne?.length || 0;
       const zrecznosciowe = data.zrecznosciowe?.length || 0;
+      const specjalne = Object.values(data.specjalne || {}).filter((v) => v?.accepted === true).length;
 
       const suma = quizy + rebusy + specjalne + zrecznosciowe;
+      console.log('✅ Suma wykonanych zadań:', suma);
+
       setGotowe(suma >= 45);
       setZaladowano(true);
     };
@@ -63,7 +65,9 @@ export default function EkranPrezentu() {
             <Text style={styles.przyciskText}>➡ Co dalej?</Text>
           </TouchableOpacity>
 
-          <Text style={styles.koncoweZyczenia}>Jeszcze raz wszystkiego najlepszego! Mam nadzieję, że choć raz się uśmiechnąłeś dzięki tej aplikacji!</Text>
+          <Text style={styles.koncoweZyczenia}>
+            Jeszcze raz wszystkiego najlepszego! Mam nadzieję, że choć raz się uśmiechnąłeś dzięki tej aplikacji!
+          </Text>
 
           <Image source={require('../../assets/end1.png')} style={styles.obrazek} />
         </>

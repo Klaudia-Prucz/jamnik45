@@ -49,7 +49,7 @@ export default function ListaRebusow() {
     >
       <SafeAreaView style={styles.safe}>
         <View style={styles.content}>
-          <Text style={styles.tytul}>🧩 Wybierz rebus</Text>
+          <Text style={styles.tytul}>Wybierz rebus</Text>
 
           <View style={styles.lista}>
             {[...Array(10)].map((_, i) => {
